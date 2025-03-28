@@ -1,6 +1,9 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { FiFigma, FiGithub, FiTwitter, FiLinkedin, FiDribbble } from "react-icons/fi";
 import { BsArrowRight } from "react-icons/bs";
+
+
 
 const Main = () => {
   const projects = [
@@ -52,10 +55,8 @@ const Main = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            <button className="px-4 py-2 text-gray-700 hover:text-purple-600 transition-colors">Log in</button>
-            <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-              Sign up
-            </button>
+            <Link to="/login" className="px-4 py-2 text-gray-700 hover:text-purple-600 transition-colors cursor-pointer">Log in</Link>
+            <Link to="/register" className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">Sign up</Link>
           </div>
         </div>
       </nav>
