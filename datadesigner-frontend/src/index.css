@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+
+
+@theme {
+  --color-light-yellow: #FAD589;
+  --color-light-blue: #C4E6E9;
+  --color-light-green: #BEE6B3;
+  --color-light-red: #FFB699;
+  --color-dark: #3B5154;
+}
+
+
+
+.gidole {
+  font-family: "Gidole", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
