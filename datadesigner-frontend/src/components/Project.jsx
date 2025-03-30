@@ -1,8 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FiDatabase, FiTable, FiColumns, FiKey, FiPlus, FiMinus, FiMove, FiLink2, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
 import { FaArrowRight } from 'react-icons/fa';
+import axios from 'axios';
+import { useParams, useNavigate } from 'react-router-dom';
 
 const Project = () => {
+  const { projectId } = useParams();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
   // Database elements state
   const [elements, setElements] = useState([]);
   const [connections, setConnections] = useState([]);
@@ -25,6 +32,61 @@ const Project = () => {
   ];
 
   const fieldTypes = ['integer', 'text', 'varchar', 'boolean', 'timestamp', 'date', 'float', 'json'];
+
+  // Load project data
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`/api/projects/${projectId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        
+        setElements(response.data.elements || []);
+        setConnections(response.data.connections || []);
+      } catch (error) {
+        console.error("Error loading project:", error);
+        navigate('/dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (projectId) {
+      fetchProject();
+    } else {
+      setLoading(false);
+    }
+  }, [projectId, navigate]);
+
+  // Auto-save functionality
+  useEffect(() => {
+    const autoSave = async () => {
+      if (!projectId || loading) return;
+      
+      try {
+        setSaving(true);
+        const token = localStorage.getItem('token');
+        await axios.put(`/api/projects/${projectId}`, {
+          elements,
+          connections
+        }, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+      } catch (error) {
+        console.error("Error saving project:", error);
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    const saveInterval = setInterval(autoSave, 30000); // Auto-save every 30 seconds
+    return () => clearInterval(saveInterval);
+  }, [projectId, elements, connections, loading]);
 
   // Calculate required width based on content
   const calculateRequiredWidth = (fields) => {
@@ -53,6 +115,28 @@ const Project = () => {
       fields: initialFields
     };
     setElements([...elements, newElement]);
+  };
+
+  // Save project manually
+  const saveProject = async () => {
+    if (!projectId) return;
+    
+    try {
+      setSaving(true);
+      const token = localStorage.getItem('token');
+      await axios.put(`/api/projects/${projectId}`, {
+        elements,
+        connections
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+    } catch (error) {
+      console.error("Error saving project:", error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Update element name
@@ -291,6 +375,14 @@ const Project = () => {
     });
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-[90vh] bg-gray-50 overflow-hidden flex flex-row justify-center">
       {/* Toolbar */}
@@ -328,6 +420,22 @@ const Project = () => {
             title="Delete selected element"
           >
             <FiTrash2 />
+          </button>
+        )}
+        {projectId && (
+          <button 
+            onClick={saveProject}
+            disabled={saving}
+            className="p-2 rounded-md hover:bg-gray-100 text-green-600"
+            title="Save project"
+          >
+            {saving ? (
+              <div className="flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : (
+              'Save'
+            )}
           </button>
         )}
       </div>
@@ -542,6 +650,7 @@ const Project = () => {
       <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 text-sm text-gray-600 flex justify-between">
         <div>
           {elements.length} elements | {connections.length} connections
+          {saving && <span className="ml-4 text-blue-600">Saving...</span>}
         </div>
         <div>
           Grid: {gridSize}px | Zoom: {zoom}%

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -11,6 +12,7 @@ const Register = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -23,10 +25,10 @@ const Register = () => {
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (formData.name.length < 3) {
-      newErrors.name = 'Name must be at least 3 characters';
+    if (!formData.username.trim()) {
+      newErrors.username = 'Username is required';
+    } else if (formData.username.length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
     }
 
     if (!formData.email) {
@@ -49,20 +51,37 @@ const Register = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setErrors({});
 
-    if (validateForm()) {
-      // Simulate API call
+    if (!validateForm()) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await axios.post('/api/auth/register', {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password
+      });
+
+      // Store token and user data
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+
+      setSuccess(true);
+      
+      // Auto-login after successful registration
       setTimeout(() => {
-        setIsLoading(false);
-        setSuccess(true);
-        // In a real app, you would handle registration logic here
-        console.log('Registration data:', formData);
-      }, 1500);
-    } else {
+        navigate('/dashboard');
+      }, 2000);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Registration failed. Please try again.';
+      setErrors({ form: errorMsg });
+    } finally {
       setIsLoading(false);
     }
   };
@@ -77,10 +96,10 @@ const Register = () => {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Registration Successful!</h2>
-          <p className="text-gray-600 mb-6">Your account has been created successfully.</p>
-          <Link to="/login" className="w-full py-3 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md transition-all inline-block">
-            Continue to Login
-          </Link>
+          <p className="text-gray-600 mb-6">You're being redirected to your dashboard.</p>
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div className="bg-blue-600 h-2.5 rounded-full animate-pulse"></div>
+          </div>
         </div>
       </div>
     );
@@ -96,21 +115,27 @@ const Register = () => {
               <h1 className="text-3xl font-bold text-gray-800 mb-2">Create an account</h1>
             </div>
 
+            {errors.form && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                {errors.form}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 text-left">
-                  Name
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 text-left">
+                  Username
                 </label>
                 <input
                   type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
+                  id="username"
+                  name="username"
+                  value={formData.username}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 rounded-lg border ${errors.name ? 'border-red-500' : 'border-gray-300'} focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-colors`}
-                  placeholder="John Doe"
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.username ? 'border-red-500' : 'border-gray-300'} focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-colors`}
+                  placeholder="johndoe"
                 />
-                {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username}</p>}
               </div>
 
               <div className="space-y-1">

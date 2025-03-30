@@ -1,35 +1,39 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
-
-
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    // Simple validation
-    if (!email || !password) {
-      setError('Please fill in both fields.');
-      setIsLoading(false);
-      return;
-    }
+    try {
+      const response = await axios.post('/api/auth/login', {
+        email,
+        password
+      });
 
-    // Simulate API call
-    setTimeout(() => {
-      if (email === 'user@example.com' && password === 'password123') {
-        alert('Login successful!');
-      } else {
-        setError('Invalid credentials. Please try again.');
-      }
+      // Store token and user data
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+
+      // Redirect to dashboard
+      navigate('/dashboard');
+    } catch (err) {
+      setError(
+        err.response?.data?.message || 
+        'Login failed. Please check your credentials and try again.'
+      );
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
