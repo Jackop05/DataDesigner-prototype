@@ -10,7 +10,7 @@ const NoSite = () => {
 
   return (
     <div className="m-0 p-0 h-screen max-h-screen flex flex-col justify-center">
-        <div className=" bg-gradient-to-br from-blue-50 to-cyan-100 flex items-center justify-center p-4 py-32 px-52 max-h-screen max-w-[800px] mx-auto">
+        <div className=" bg-gradient-to-br from-blue-50 to-cyan-100 flex items-center justify-center p-4 py-32 px-52 max-h-screen max-w-[800px] mx-auto rounded-xl">
             <div className="w-full max-w-[400px] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
                 {/* Left side - Content */}
                 <div className="w-full p-8 md:p-12 flex flex-col">

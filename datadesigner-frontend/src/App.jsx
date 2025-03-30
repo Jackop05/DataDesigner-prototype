@@ -12,7 +12,7 @@ import NoSite from './components/NoSite';
 
 function App() {
   return (
-    <div className='gidole'>
+    <div className='gidole p-0 m-0'>
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />

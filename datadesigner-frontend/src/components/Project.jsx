@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { FiDatabase, FiTable, FiColumns, FiKey, FiPlus, FiMinus, FiMove, FiLink2 } from 'react-icons/fi';
+import React, { useState, useRef } from 'react';
+import { FiDatabase, FiTable, FiColumns, FiKey, FiPlus, FiMinus, FiMove, FiLink2, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
 import { FaArrowRight } from 'react-icons/fa';
 
 const Project = () => {
@@ -10,38 +10,133 @@ const Project = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStart, setConnectionStart] = useState(null);
   const [zoom, setZoom] = useState(100);
-  const [gridSize, setGridSize] = useState(20); // Size of grid dots
+  const [gridSize, setGridSize] = useState(20);
+  const [editingField, setEditingField] = useState(null);
+  const [newFieldName, setNewFieldName] = useState('');
+  const [newFieldType, setNewFieldType] = useState('text');
   const boardRef = useRef(null);
   const [boardPosition, setBoardPosition] = useState({ x: 0, y: 0 });
 
-  // Sample database element types
+  // Element and field configuration
   const elementTypes = [
     { type: 'table', icon: <FiTable />, color: 'bg-blue-100', textColor: 'text-blue-800' },
     { type: 'view', icon: <FiDatabase />, color: 'bg-green-100', textColor: 'text-green-800' },
     { type: 'enum', icon: <FiColumns />, color: 'bg-purple-100', textColor: 'text-purple-800' },
   ];
 
+  const fieldTypes = ['integer', 'text', 'varchar', 'boolean', 'timestamp', 'date', 'float', 'json'];
+
+  // Calculate required width based on content
+  const calculateRequiredWidth = (fields) => {
+    const fieldNameWidths = fields.map(f => f.name.length * 8);
+    const fieldTypeWidths = fields.map(f => f.type.length * 8);
+    return Math.max(200, Math.max(...fieldNameWidths) + Math.max(...fieldTypeWidths) + 100);
+  };
+
   // Add new element to the board
   const addElement = (type) => {
+    const baseHeight = 120;
+    const fieldHeight = 30;
+    const initialFields = type === 'table' ? [
+      { id: `field-${Date.now()}`, name: 'id', type: 'integer', isPrimary: true },
+      { id: `field-${Date.now() + 1}`, name: 'created_at', type: 'timestamp' }
+    ] : [];
+
     const newElement = {
       id: `element-${Date.now()}`,
       type,
       name: `New ${type}`,
       x: 100,
       y: 100,
-      width: 200,
-      height: 120,
-      fields: type === 'table' ? [
-        { name: 'id', type: 'integer', isPrimary: true },
-        { name: 'created_at', type: 'timestamp' }
-      ] : []
+      width: calculateRequiredWidth(initialFields),
+      height: baseHeight + (initialFields.length * fieldHeight),
+      fields: initialFields
     };
     setElements([...elements, newElement]);
   };
 
+  // Update element name
+  const updateElementName = (id, newName) => {
+    setElements(elements.map(el => 
+      el.id === id ? { ...el, name: newName } : el
+    ));
+  };
+
+  // Add new field to element
+  const addField = (elementId) => {
+    setElements(elements.map(el => {
+      if (el.id === elementId) {
+        const newFields = [...el.fields, { 
+          id: `field-${Date.now()}`, 
+          name: newFieldName || 'new_field', 
+          type: newFieldType,
+          isPrimary: false 
+        }];
+        
+        return {
+          ...el, 
+          fields: newFields,
+          height: 120 + (newFields.length * 30),
+          width: calculateRequiredWidth(newFields)
+        };
+      }
+      return el;
+    }));
+    setNewFieldName('');
+    setNewFieldType('text');
+  };
+
+  // Delete a field from element
+  const deleteField = (elementId, fieldId) => {
+    setElements(elements.map(el => {
+      if (el.id === elementId) {
+        const newFields = el.fields.filter(f => f.id !== fieldId);
+        return {
+          ...el, 
+          fields: newFields,
+          height: Math.max(120, 120 + (newFields.length * 30)),
+          width: calculateRequiredWidth(newFields)
+        };
+      }
+      return el;
+    }));
+    setEditingField(null);
+  };
+
+  // Update field properties
+  const updateField = (elementId, fieldId, updates) => {
+    setElements(elements.map(el => {
+      if (el.id === elementId) {
+        const newFields = el.fields.map(f => 
+          f.id === fieldId ? { ...f, ...updates } : f
+        );
+        
+        return {
+          ...el,
+          fields: newFields,
+          width: calculateRequiredWidth(newFields)
+        };
+      }
+      return el;
+    }));
+  };
+
+  // Toggle primary key status
+  const togglePrimaryKey = (elementId, fieldId) => {
+    setElements(elements.map(el => 
+      el.id === elementId ? { 
+        ...el, 
+        fields: el.fields.map(f => ({
+          ...f,
+          isPrimary: f.id === fieldId ? !f.isPrimary : false
+        }))
+      } : el
+    ));
+  };
+
   // Handle element movement
   const handleElementMove = (id, e) => {
-    if (e.buttons !== 1) return; // Only on left mouse click
+    if (e.buttons !== 1) return;
     
     const element = elements.find(el => el.id === id);
     if (!element) return;
@@ -55,7 +150,6 @@ const Project = () => {
       const dx = moveEvent.clientX - startX;
       const dy = moveEvent.clientY - startY;
       
-      // Snap to grid
       const newX = Math.round((startPosX + dx) / gridSize) * gridSize;
       const newY = Math.round((startPosY + dy) / gridSize) * gridSize;
       
@@ -73,23 +167,23 @@ const Project = () => {
     document.addEventListener('mouseup', upHandler);
   };
 
-  // Start creating a connection
-  const startConnection = (elementId, isOutput) => {
+  // Connection management
+  const startConnection = (elementId, isOutput, isFromTop = false) => {
     setIsConnecting(true);
-    setConnectionStart({ elementId, isOutput });
+    setConnectionStart({ elementId, isOutput, isFromTop });
   };
 
-  // Complete connection
-  const completeConnection = (elementId) => {
+  const completeConnection = (elementId, isTop = false) => {
     if (isConnecting && connectionStart) {
-      const isOutput = !connectionStart.isOutput;
       if (connectionStart.elementId !== elementId) {
         setConnections([
           ...connections,
           {
             id: `conn-${Date.now()}`,
             from: connectionStart.isOutput ? connectionStart.elementId : elementId,
-            to: connectionStart.isOutput ? elementId : connectionStart.elementId
+            to: connectionStart.isOutput ? elementId : connectionStart.elementId,
+            fromIsTop: connectionStart.isFromTop,
+            toIsTop: isTop
           }
         ]);
       }
@@ -98,9 +192,23 @@ const Project = () => {
     setConnectionStart(null);
   };
 
+  const deleteConnection = (connectionId) => {
+    setConnections(connections.filter(conn => conn.id !== connectionId));
+  };
+
+  const deleteSelectedElement = () => {
+    if (selectedElement) {
+      setElements(elements.filter(el => el.id !== selectedElement));
+      setConnections(connections.filter(conn => 
+        conn.from !== selectedElement && conn.to !== selectedElement
+      ));
+      setSelectedElement(null);
+    }
+  };
+
   // Handle board movement
   const handleBoardMove = (e) => {
-    if (e.buttons !== 2) return; // Only on right mouse click
+    if (e.buttons !== 2) return;
     
     const startX = e.clientX;
     const startY = e.clientY;
@@ -153,10 +261,10 @@ const Project = () => {
       
       if (!fromEl || !toEl) return null;
       
-      const fromX = fromEl.x + fromEl.width;
-      const fromY = fromEl.y + fromEl.height / 2;
-      const toX = toEl.x;
-      const toY = toEl.y + toEl.height / 2;
+      const fromX = conn.fromIsTop ? fromEl.x + fromEl.width / 2 : fromEl.x + fromEl.width;
+      const fromY = conn.fromIsTop ? fromEl.y - 10 : fromEl.y + fromEl.height / 2;
+      const toX = conn.toIsTop ? toEl.x + toEl.width / 2 : toEl.x;
+      const toY = conn.toIsTop ? toEl.y - 10 : toEl.y + toEl.height / 2;
       
       return (
         <svg 
@@ -170,13 +278,21 @@ const Project = () => {
             fill="none"
             markerEnd="url(#arrowhead)"
           />
+          <circle 
+            cx={fromX} 
+            cy={fromY} 
+            r="5" 
+            fill="#6366f1" 
+            className="cursor-pointer pointer-events-auto"
+            onClick={() => deleteConnection(conn.id)}
+          />
         </svg>
       );
     });
   };
 
   return (
-    <div className="relative w-full h-screen bg-gray-50 overflow-hidden">
+    <div className="relative w-full h-[90vh] bg-gray-50 overflow-hidden flex flex-row justify-center">
       {/* Toolbar */}
       <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-md p-2 flex flex-col space-y-2">
         {elementTypes.map((item) => (
@@ -205,6 +321,15 @@ const Project = () => {
           <FiMinus />
         </button>
         <div className="text-xs text-center">{zoom}%</div>
+        {selectedElement && (
+          <button 
+            onClick={deleteSelectedElement}
+            className="p-2 rounded-md hover:bg-gray-100 text-red-500"
+            title="Delete selected element"
+          >
+            <FiTrash2 />
+          </button>
+        )}
       </div>
 
       {/* Board */}
@@ -252,22 +377,48 @@ const Project = () => {
                 left: `${element.x}px`,
                 top: `${element.y}px`,
                 width: `${element.width}px`,
-                height: `${element.height}px`,
+                minHeight: '120px'
               }}
               onClick={() => setSelectedElement(element.id)}
               onMouseDown={(e) => handleElementMove(element.id, e)}
             >
+              {/* Top connection dot */}
+              <div 
+                className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-gray-400 cursor-pointer hover:bg-gray-600"
+                onMouseDown={(e) => { e.stopPropagation(); startConnection(element.id, true, true); }}
+                title="Create connection from top"
+              />
+
               {/* Element header */}
               <div className={`flex items-center p-2 border-b ${elementType.textColor} font-medium`}>
-                {elementType.icon}
-                <span className="ml-2">{element.name}</span>
+                {editingField === `name-${element.id}` ? (
+                  <input
+                    type="text"
+                    value={element.name}
+                    onChange={(e) => updateElementName(element.id, e.target.value)}
+                    onBlur={() => setEditingField(null)}
+                    onKeyPress={(e) => e.key === 'Enter' && setEditingField(null)}
+                    className="w-full bg-transparent border-b border-gray-400 focus:outline-none"
+                    autoFocus
+                  />
+                ) : (
+                  <>
+                    {elementType.icon}
+                    <span 
+                      className="ml-2 cursor-text"
+                      onClick={(e) => { e.stopPropagation(); setEditingField(`name-${element.id}`); }}
+                    >
+                      {element.name}
+                    </span>
+                  </>
+                )}
                 <div className="ml-auto flex space-x-1">
                   <button 
-                    className="p-1 rounded hover:bg-white hover:bg-opacity-30"
+                    className={`p-1 rounded hover:bg-white hover:bg-opacity-30 ${element.fields.some(f => f.isPrimary) ? 'text-yellow-600' : 'text-gray-600'}`}
                     onMouseDown={(e) => { e.stopPropagation(); startConnection(element.id, true); }}
                     title="Create connection from this element"
                   >
-                    <FiLink2 size={14} />
+                    <FiKey size={14} />
                   </button>
                   <button 
                     className="p-1 rounded hover:bg-white hover:bg-opacity-30"
@@ -280,19 +431,99 @@ const Project = () => {
               </div>
 
               {/* Element fields */}
-              <div className="p-2 overflow-auto" style={{ height: `calc(100% - 36px)` }}>
-                {element.fields?.map((field, i) => (
-                  <div key={i} className="flex items-center py-1 px-2 text-sm hover:bg-white hover:bg-opacity-30 rounded">
-                    {field.isPrimary && <FiKey className="mr-2 text-yellow-600" size={12} />}
-                    <span className="font-mono">{field.name}</span>
-                    <span className="ml-auto text-gray-500 text-xs">{field.type}</span>
+              <div className="p-2">
+                {element.fields?.map((field) => (
+                  <div key={field.id} className="flex items-center py-1 px-2 text-sm hover:bg-white hover:bg-opacity-30 rounded group">
+                    {editingField === `field-${field.id}` ? (
+                      <div className="flex items-center w-full">
+                        <button 
+                          className={`p-1 mr-1 rounded ${field.isPrimary ? 'text-yellow-600' : 'text-gray-400'}`}
+                          onClick={() => togglePrimaryKey(element.id, field.id)}
+                          title={field.isPrimary ? 'Primary key' : 'Set as primary key'}
+                        >
+                          <FiKey size={12} />
+                        </button>
+                        <input
+                          type="text"
+                          value={field.name}
+                          onChange={(e) => updateField(element.id, field.id, { name: e.target.value })}
+                          onBlur={() => setEditingField(null)}
+                          onKeyPress={(e) => e.key === 'Enter' && setEditingField(null)}
+                          className="flex-1 bg-transparent border-b border-gray-400 focus:outline-none"
+                          autoFocus
+                        />
+                        <select
+                          value={field.type}
+                          onChange={(e) => updateField(element.id, field.id, { type: e.target.value })}
+                          className="ml-2 bg-transparent border-b border-gray-400 focus:outline-none"
+                        >
+                          {fieldTypes.map(type => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                        <button 
+                          className="ml-2 p-1 text-red-500"
+                          onClick={() => deleteField(element.id, field.id)}
+                          title="Delete field"
+                        >
+                          <FiTrash2 size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button 
+                          className={`p-1 mr-1 rounded ${field.isPrimary ? 'text-yellow-600' : 'text-gray-400 hover:text-gray-600'}`}
+                          onClick={() => togglePrimaryKey(element.id, field.id)}
+                          title={field.isPrimary ? 'Primary key' : 'Set as primary key'}
+                        >
+                          <FiKey size={12} />
+                        </button>
+                        <span 
+                          className="font-mono cursor-text"
+                          onClick={(e) => { e.stopPropagation(); setEditingField(`field-${field.id}`); }}
+                        >
+                          {field.name}
+                        </span>
+                        <span className="ml-auto text-gray-500 text-xs">{field.type}</span>
+                        <button 
+                          className="ml-2 p-1 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-500"
+                          onClick={(e) => { e.stopPropagation(); deleteField(element.id, field.id); }}
+                          title="Delete field"
+                        >
+                          <FiX size={12} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))}
-                {element.fields?.length === 0 && (
-                  <div className="text-center text-gray-500 text-sm py-4">
-                    No fields defined
-                  </div>
-                )}
+                
+                {/* Add new field */}
+                <div className="mt-2 flex items-center">
+                  <input
+                    type="text"
+                    value={newFieldName}
+                    onChange={(e) => setNewFieldName(e.target.value)}
+                    placeholder="Field name"
+                    className="flex-1 text-sm border-b border-gray-400 focus:outline-none bg-transparent"
+                    onKeyPress={(e) => e.key === 'Enter' && addField(element.id)}
+                  />
+                  <select
+                    value={newFieldType}
+                    onChange={(e) => setNewFieldType(e.target.value)}
+                    className="ml-2 text-sm border-b border-gray-400 focus:outline-none bg-transparent"
+                  >
+                    {fieldTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                  <button 
+                    className="ml-2 p-1 text-green-600"
+                    onClick={() => addField(element.id)}
+                    title="Add field"
+                  >
+                    <FiPlus size={14} />
+                  </button>
+                </div>
               </div>
 
               {/* Connection points */}
