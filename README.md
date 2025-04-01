@@ -9,10 +9,8 @@
 ## 🚀 Features
 
 - 🖱️ **Drag-and-drop** interface for effortless dashboard creation
-- 📊 **Multiple visualization types** (Charts, Tables, Gauges, and more)
-- ⚡ **Real-time data preview** with mock API support
-- 🌈 **Custom themes** (light/dark mode + customizable palettes)
-- 📤 **Export/Import** dashboard configurations as JSON
+- 📊 **Multiple visualization types** (Enums, Tables, and more)
+- ⚡ **Real-time data handling** with  API support
 - 📱 **Fully responsive** layouts for all devices
 - 🔄 **Undo/Redo** functionality for stress-free editing
 
@@ -21,7 +19,10 @@
 ## 🛠️ Tech Stack
 
 **Frontend**  
-![React](https://img.shields.io/badge/-React-61DAFB?logo=react&logoColor=white) ![TypeScript](https://img.shields.io/badge/-TypeScript-3178C6?logo=typescript&logoColor=white) ![Redux](https://img.shields.io/badge/-Redux-764ABC?logo=redux&logoColor=white)
+![React](https://img.shields.io/badge/-React-61DAFB?logo=react&logoColor=white) ![TypeScript](https://img.shields.io/badge/-TypeScript-3178C6?logo=typescript&logoColor=white) 
+
+**Backend**  
+![Node.js](https://img.shields.io/badge/-Node.js-339933?logo=node.js&logoColor=white) ![Express](https://img.shields.io/badge/-Express-000000?logo=express&logoColor=white) ![MongoDB](https://img.shields.io/badge/-MongoDB-47A248?logo=mongodb&logoColor=white)
 
 **Styling**  
 ![TailwindCSS](https://img.shields.io/badge/-Tailwind_CSS-06B6D4?logo=tailwind-css&logoColor=white) ![CSS Modules](https://img.shields.io/badge/-CSS_Modules-000000?logo=css3&logoColor=white)
