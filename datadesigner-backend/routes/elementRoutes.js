@@ -1,203 +1,90 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const Element = require("../models/Element");
-const Connection = require("../models/Connection");
-const Project = require("../models/Project");
+const Element = require('../models/Element');
+const Connection = require('../models/Connection');
+const Project = require('../models/Project');
 
-// Helper function for error handling
-const handleError = (res, error, statusCode = 500) => {
-  console.error(error);
-  res.status(statusCode).json({ 
-    success: false, 
-    message: error.message || 'An error occurred' 
-  });
-};
-
-// Create new element
-router.post('/post-new-element', async (req, res) => {
+router.post('/:projectId/post-project-data', async (req, res) => {
   try {
-    const { projectId, name, position, backgroundColor, borderColor, attributes, fontSize, color } = req.body;
+    const { elements, connections } = req.body;
+    const projectId = req.params.projectId;
 
-    // Create new element
-    const newElement = new Element({
-      name,
-      position,
-      backgroundColor,
-      borderColor,
-      attributes: attributes || [],
-      connections: [],
-      fontSize,
-      color
-    });
-
-    const savedElement = await newElement.save();
-
-    // Add element to project
-    await Project.findByIdAndUpdate(
-      projectId,
-      { $push: { elements: savedElement._id } },
-      { new: true }
-    );
-
-    res.status(201).json({ 
-      success: true, 
-      element: savedElement 
-    });
-  } catch (error) {
-    handleError(res, error);
-  }
-});
-
-// Create new connection
-router.post('/post-new-connection', async (req, res) => {
-  try {
-    const { positionsX, positionsY, color, elementId } = req.body;
-
-    // Create new connection
-    const newConnection = new Connection({
-      positionsX,
-      positionsY,
-      color
-    });
-
-    const savedConnection = await newConnection.save();
-
-    // Add connection to element
-    if (elementId) {
-      await Element.findByIdAndUpdate(
-        elementId,
-        { $push: { connections: savedConnection._id } },
-        { new: true }
-      );
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ msg: 'Project not found' });
     }
 
-    res.status(201).json({ 
-      success: true, 
-      connection: savedConnection 
-    });
-  } catch (error) {
-    handleError(res, error);
-  }
-});
+    // Update timestamp
+    project.updatedAt = new Date();
 
-// Update element
-router.put('/change-element/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
+    // Track updated references
+    const newElementIds = [];
+    const newConnectionIds = [];
 
-    const updatedElement = await Element.findByIdAndUpdate(
-      id,
-      updates,
-      { new: true }
-    );
+    // Fetch existing elements and connections
+    const existingElements = await Element.find({ project: projectId });
+    const existingConnections = await Connection.find({ project: projectId });
 
-    if (!updatedElement) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Element not found' 
+    const existingElementIds = existingElements.map(el => el.id);
+    const existingConnectionPairs = existingConnections.map(conn => `${conn.from}-${conn.to}`);
+
+    // --- Handle Elements ---
+    for (let element of elements) {
+      let found = await Element.findOne({ id: element.id, project: projectId });
+      if (found) {
+        Object.assign(found, element);
+        await found.save();
+        newElementIds.push(found._id);
+      } else {
+        const newElement = new Element({ ...element, project: projectId });
+        await newElement.save();
+        newElementIds.push(newElement._id);
+      }
+    }
+
+    // Delete removed elements
+    const incomingElementIds = elements.map(el => el.id);
+    const elementsToDelete = existingElements.filter(el => !incomingElementIds.includes(el.id));
+    if (elementsToDelete.length > 0) {
+      await Element.deleteMany({
+        _id: { $in: elementsToDelete.map(el => el._id) }
       });
     }
 
-    res.json({ 
-      success: true, 
-      element: updatedElement 
-    });
-  } catch (error) {
-    handleError(res, error);
-  }
-});
+    // --- Handle Connections ---
+    for (let connection of connections) {
+      const key = `${connection.from}-${connection.to}`;
+      let found = await Connection.findOne({ from: connection.from, to: connection.to, project: projectId });
+      if (found) {
+        Object.assign(found, connection);
+        await found.save();
+        newConnectionIds.push(found._id);
+      } else {
+        const newConnection = new Connection({ ...connection, project: projectId });
+        await newConnection.save();
+        newConnectionIds.push(newConnection._id);
+      }
+    }
 
-// Update connection
-router.put('/change-connection/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { positionsX, positionsY, color } = req.body;
-
-    const updatedConnection = await Connection.findByIdAndUpdate(
-      id,
-      { positionsX, positionsY, color },
-      { new: true }
-    );
-
-    if (!updatedConnection) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Connection not found' 
+    // Delete removed connections
+    const incomingKeys = connections.map(conn => `${conn.from}-${conn.to}`);
+    const connectionsToDelete = existingConnections.filter(conn => !incomingKeys.includes(`${conn.from}-${conn.to}`));
+    if (connectionsToDelete.length > 0) {
+      await Connection.deleteMany({
+        _id: { $in: connectionsToDelete.map(conn => conn._id) }
       });
     }
 
-    res.json({ 
-      success: true, 
-      connection: updatedConnection 
-    });
-  } catch (error) {
-    handleError(res, error);
-  }
-});
+    // Update project references
+    project.elements = newElementIds;
+    project.connections = newConnectionIds;
 
-// Delete element
-router.delete('/delete-element/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
+    await project.save();
 
-    // First find the element to get its connections
-    const element = await Element.findById(id);
-    if (!element) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Element not found' 
-      });
-    }
-
-    // Delete all associated connections
-    await Connection.deleteMany({ _id: { $in: element.connections } });
-
-    // Remove element from any projects
-    await Project.updateMany(
-      { elements: id },
-      { $pull: { elements: id } }
-    );
-
-    // Finally delete the element
-    await Element.findByIdAndDelete(id);
-
-    res.json({ 
-      success: true, 
-      message: 'Element and its connections deleted successfully' 
-    });
-  } catch (error) {
-    handleError(res, error);
-  }
-});
-
-// Delete connection
-router.delete('/delete-connection/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Remove connection from elements
-    await Element.updateMany(
-      { connections: id },
-      { $pull: { connections: id } }
-    );
-
-    // Delete the connection
-    const deletedConnection = await Connection.findByIdAndDelete(id);
-
-    if (!deletedConnection) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Connection not found' 
-      });
-    }
-
-    res.json({ 
-      success: true, 
-      message: 'Connection deleted successfully' 
-    });
-  } catch (error) {
-    handleError(res, error);
+    res.json({ msg: 'Project data saved successfully', elements, connections });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
   }
 });
 
