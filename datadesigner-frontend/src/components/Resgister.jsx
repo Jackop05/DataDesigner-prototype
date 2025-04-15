@@ -62,7 +62,7 @@ const Register = () => {
     }
 
     try {
-      const response = await axios.post('/api/auth/register', {
+      const response = await axios.post('http://localhost:5000/api/auth/register', {
         username: formData.username,
         email: formData.email,
         password: formData.password
@@ -76,7 +76,7 @@ const Register = () => {
       
       // Auto-login after successful registration
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate('/login');
       }, 2000);
     } catch (err) {
       const errorMsg = err.response?.data?.message || 'Registration failed. Please try again.';

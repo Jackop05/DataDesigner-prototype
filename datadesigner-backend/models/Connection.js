@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 
 const ConnectionSchema = new mongoose.Schema({
-  positionsX: [{ type: Integer, required: true }],
-  positionsY: [{ type: Integer, required: true }],
+  positionsX: [{ type: Number, required: true }],
+  positionsY: [{ type: Number, required: true }],
   color: { type: String, required: true },
 });
 

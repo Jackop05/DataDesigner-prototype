@@ -1,8 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const User = require("../models/User");
 const Project = require("../models/Project");
-const { verifyToken } = require("../middleware/auth"); // Assuming you have auth middleware
 
 // Helper function for error handling
 const handleError = (res, error, statusCode = 500) => {
@@ -14,15 +12,35 @@ const handleError = (res, error, statusCode = 500) => {
 };
 
 // Get authenticated user's data
-router.get('/get-user-data', verifyToken, async (req, res) => {
+// Add auth middleware to protect route
+// Import required modules
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+router.get('/get-user-data', async (req, res) => {
+  console.log('working')
   try {
-    // Get user data excluding password
-    const user = await User.findById(req.userId)
+    // 1. Get token from Authorization header
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'No token provided' 
+      });
+    }
+
+    // 2. Decode token to get userId
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+    
+    // 3. Fetch user data using the decoded userId
+    const user = await User.findById(userId)
       .select('-password')
       .populate({
         path: 'projects',
-        select: '_id', // Only get project IDs
-        options: { sort: { createdAt: -1 } } // Sort by newest first
+        select: '_id name description', // Include necessary fields
+        options: { sort: { createdAt: -1 } }
       });
 
     if (!user) {
@@ -32,8 +50,9 @@ router.get('/get-user-data', verifyToken, async (req, res) => {
       });
     }
 
+    // 4. Return user data
     res.json({ 
-      success: true, 
+      success: true,
       user: {
         id: user._id,
         username: user.username,
@@ -42,13 +61,27 @@ router.get('/get-user-data', verifyToken, async (req, res) => {
         createdAt: user.createdAt
       }
     });
+
   } catch (error) {
-    handleError(res, error);
+    console.error(error);
+    
+    // Handle different error cases
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid token' 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
   }
 });
 
 // Get project data with all its elements and connections
-router.get('/get-project-data/:projectId', verifyToken, async (req, res) => {
+router.get('/get-project-data/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
 

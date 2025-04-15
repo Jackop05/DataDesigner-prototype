@@ -15,17 +15,18 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await axios.post('/api/auth/login', {
-        email,
-        password
-      });
+      const response = await axios.post(
+        'http://localhost:5000/api/auth/login',
+        { email, password },
+        { withCredentials: true } // 👈 Critical for cookies
+      );
 
-      // Store token and user data
-      localStorage.setItem('token', response.data.token);
+      // No need to handle tokens manually - they're in cookies!
+      // Just save user data if needed
       localStorage.setItem('user', JSON.stringify(response.data.user));
 
       // Redirect to dashboard
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       setError(
         err.response?.data?.message || 
@@ -35,6 +36,7 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen max-h-screen flex flex-col justify-center overflow-y-hidden mx-0">

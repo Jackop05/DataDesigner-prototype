@@ -5,56 +5,63 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 router.post('/login', async (req, res) => {
-  try {
+  try { 
     const { email, password } = req.body;
 
-    // Validate input
     if (!email || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Email and password are required' 
-      });
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password required'
+      })
     }
 
-    // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid credentials' 
-      });
+      return res.status(401).json({
+        success: false,
+        message: 'No given user in database'
+      })
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid credentials' 
-      });
+    const correctPassword = await bcrypt.compare(password, user.password);
+    if (!correctPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      })
     }
 
-    // Create token
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
+    if (!process.env.JWT_SECRET) {
+      throw new Error("No JWT_SECRET found in .env file");
+    }
+
+    const jwt_token = jwt.sign(
+      { 
+        userId: user._id ,
+        username: user.username,
+        email: user.email,
+        projects: user.projects
+      },
+      process.env.JWT_SECRET ,
       { expiresIn: '1h' }
     );
 
+    res.cookie("jwt_token", jwt_token, {
+      httpOnly: true,
+      secure: true,
+      maxAge: 60 * 60 * 1000
+    })
+
     res.json({
-      success: true,
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email
-      }
+      success: true, 
+      message: "Logged user successfully"
     });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ 
+    console.log(error);
+    res.status(500).json({
       success: false, 
-      message: 'Server error' 
+      message: "Server error during login"
     });
   }
 });
@@ -67,7 +74,7 @@ router.post('/register', async (req, res) => {
     if (!username || !email || !password) {
       return res.status(400).json({ 
         success: false, 
-        message: 'All fields are required' 
+        message: 'Email, password and username required' 
       });
     }
 
@@ -94,63 +101,38 @@ router.post('/register', async (req, res) => {
 
     await newUser.save();
 
-    // Create token
-    const token = jwt.sign(
-      { userId: newUser._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '1h' }
-    );
-
     res.status(201).json({
       success: true,
-      token,
-      user: {
-        id: newUser._id,
-        username: newUser.username,
-        email: newUser.email
-      }
+      message: "User registered successfully"
     });
+
   } catch (error) {
-    console.error(error);
+    console.log(error);
     res.status(500).json({ 
       success: false, 
-      message: 'Server error' 
+      message: 'Server error during register' 
     });
   }
 });
 
-router.post('/logout', verifyToken, async (req, res) => {
-    try {
-        // Get the current token from headers
-        const token = req.headers.authorization?.split(' ')[1];
-        
-        if (!token) {
-        return res.status(400).json({ 
-            success: false, 
-            message: 'No token provided' 
-        });
-        }
+router.post('/logout', async (req, res) => {
+    try {       
+      res.clearCookie("jwt_token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "Strict"
+      });
 
-        // Create a replacement token that expires in 1 second
-        const replacementToken = jwt.sign(
-        { userId: req.userId, invalidated: true },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '1s' }  // Expires immediately
-        );
-
-        // You might want to store invalidated tokens in Redis/DB
-        // for additional security in a production environment
-
-        res.json({ 
+      res.json({ 
         success: true, 
-        message: 'Logged out successfully',
-        token: replacementToken  // Send the replacement token
-        });
+        message: "Logged out" 
+      });
+
     } catch (error) {
-        console.error(error);
+      console.log(error);
         res.status(500).json({ 
-        success: false, 
-        message: 'Server error during logout' 
+          success: false, 
+          message: 'Server error during logout' 
         });
     }
 });

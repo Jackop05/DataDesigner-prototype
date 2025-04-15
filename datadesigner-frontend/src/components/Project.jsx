@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiDatabase, FiTable, FiColumns, FiKey, FiPlus, FiMinus, FiMove, FiLink2, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
-import { FaArrowRight } from 'react-icons/fa';
+import { FiTable, FiColumns, FiKey, FiPlus, FiMinus, FiTrash2, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -27,18 +26,17 @@ const Project = () => {
   // Element and field configuration
   const elementTypes = [
     { type: 'table', icon: <FiTable />, color: 'bg-blue-100', textColor: 'text-blue-800' },
-    { type: 'view', icon: <FiDatabase />, color: 'bg-green-100', textColor: 'text-green-800' },
-    { type: 'enum', icon: <FiColumns />, color: 'bg-purple-100', textColor: 'text-purple-800' },
   ];
 
   const fieldTypes = ['integer', 'text', 'varchar', 'boolean', 'timestamp', 'date', 'float', 'json'];
+  const relationshipTypes = ['one-to-one', 'one-to-many', 'many-to-many'];
 
   // Load project data
   useEffect(() => {
     const fetchProject = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`/api/projects/${projectId}`, {
+        const response = await axios.get(`http://localhost:5000/api/projects/${projectId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -56,8 +54,6 @@ const Project = () => {
 
     if (projectId) {
       fetchProject();
-    } else {
-      setLoading(false);
     }
   }, [projectId, navigate]);
 
@@ -69,7 +65,7 @@ const Project = () => {
       try {
         setSaving(true);
         const token = localStorage.getItem('token');
-        await axios.put(`/api/projects/${projectId}`, {
+        await axios.put(`http://localhost:5000/api/projects/${projectId}`, {
           elements,
           connections
         }, {
@@ -84,7 +80,7 @@ const Project = () => {
       }
     };
 
-    const saveInterval = setInterval(autoSave, 30000); // Auto-save every 30 seconds
+    const saveInterval = setInterval(autoSave, 30000);
     return () => clearInterval(saveInterval);
   }, [projectId, elements, connections, loading]);
 
@@ -95,19 +91,19 @@ const Project = () => {
     return Math.max(200, Math.max(...fieldNameWidths) + Math.max(...fieldTypeWidths) + 100);
   };
 
-  // Add new element to the board
-  const addElement = (type) => {
+  // Add new table to the board
+  const addTable = () => {
     const baseHeight = 120;
     const fieldHeight = 30;
-    const initialFields = type === 'table' ? [
+    const initialFields = [
       { id: `field-${Date.now()}`, name: 'id', type: 'integer', isPrimary: true },
       { id: `field-${Date.now() + 1}`, name: 'created_at', type: 'timestamp' }
-    ] : [];
+    ];
 
     const newElement = {
       id: `element-${Date.now()}`,
-      type,
-      name: `New ${type}`,
+      type: 'table',
+      name: `New Table`,
       x: 100,
       y: 100,
       width: calculateRequiredWidth(initialFields),
@@ -124,7 +120,7 @@ const Project = () => {
     try {
       setSaving(true);
       const token = localStorage.getItem('token');
-      await axios.put(`/api/projects/${projectId}`, {
+      await axios.put(`http://localhost:5000/api/projects/${projectId}`, {
         elements,
         connections
       }, {
@@ -139,14 +135,14 @@ const Project = () => {
     }
   };
 
-  // Update element name
+  // Update table name
   const updateElementName = (id, newName) => {
     setElements(elements.map(el => 
       el.id === id ? { ...el, name: newName } : el
     ));
   };
 
-  // Add new field to element
+  // Add new field to table
   const addField = (elementId) => {
     setElements(elements.map(el => {
       if (el.id === elementId) {
@@ -170,7 +166,7 @@ const Project = () => {
     setNewFieldType('text');
   };
 
-  // Delete a field from element
+  // Delete a field from table
   const deleteField = (elementId, fieldId) => {
     setElements(elements.map(el => {
       if (el.id === elementId) {
@@ -218,7 +214,7 @@ const Project = () => {
     ));
   };
 
-  // Handle element movement
+  // Handle table movement
   const handleElementMove = (id, e) => {
     if (e.buttons !== 1) return;
     
@@ -252,28 +248,45 @@ const Project = () => {
   };
 
   // Connection management
-  const startConnection = (elementId, isOutput, isFromTop = false) => {
+  const startConnection = (elementId, fieldId = null) => {
     setIsConnecting(true);
-    setConnectionStart({ elementId, isOutput, isFromTop });
+    setConnectionStart({ elementId, fieldId });
   };
 
-  const completeConnection = (elementId, isTop = false) => {
+  const completeConnection = (elementId, fieldId = null) => {
     if (isConnecting && connectionStart) {
       if (connectionStart.elementId !== elementId) {
+        const fromField = connectionStart.fieldId 
+          ? elements.find(el => el.id === connectionStart.elementId)?.fields?.find(f => f.id === connectionStart.fieldId)
+          : null;
+        
+        const toField = fieldId 
+          ? elements.find(el => el.id === elementId)?.fields?.find(f => f.id === fieldId)
+          : null;
+
         setConnections([
           ...connections,
           {
             id: `conn-${Date.now()}`,
-            from: connectionStart.isOutput ? connectionStart.elementId : elementId,
-            to: connectionStart.isOutput ? elementId : connectionStart.elementId,
-            fromIsTop: connectionStart.isFromTop,
-            toIsTop: isTop
+            from: connectionStart.elementId,
+            to: elementId,
+            fromField: connectionStart.fieldId,
+            toField: fieldId,
+            type: 'one-to-many', // Default relationship type
+            fromFieldName: fromField?.name,
+            toFieldName: toField?.name
           }
         ]);
       }
     }
     setIsConnecting(false);
     setConnectionStart(null);
+  };
+
+  const updateConnection = (connectionId, updates) => {
+    setConnections(connections.map(conn => 
+      conn.id === connectionId ? { ...conn, ...updates } : conn
+    ));
   };
 
   const deleteConnection = (connectionId) => {
@@ -337,7 +350,32 @@ const Project = () => {
     ));
   };
 
-  // Render connections between elements
+  // Calculate connection path points
+  const calculateConnectionPath = (fromEl, toEl, fromFieldId = null, toFieldId = null) => {
+    // If connecting specific fields
+    if (fromFieldId && toFieldId) {
+      const fromFieldIndex = fromEl.fields.findIndex(f => f.id === fromFieldId);
+      const toFieldIndex = toEl.fields.findIndex(f => f.id === toFieldId);
+      
+      const fromX = fromEl.x + fromEl.width;
+      const fromY = fromEl.y + 60 + (fromFieldIndex * 30); // 60 is header height + padding
+      
+      const toX = toEl.x;
+      const toY = toEl.y + 60 + (toFieldIndex * 30);
+      
+      return { fromX, fromY, toX, toY };
+    }
+    
+    // Default connection between tables (center points)
+    const fromX = fromEl.x + fromEl.width;
+    const fromY = fromEl.y + fromEl.height / 2;
+    const toX = toEl.x;
+    const toY = toEl.y + toEl.height / 2;
+    
+    return { fromX, fromY, toX, toY };
+  };
+
+  // Render connections between tables
   const renderConnections = () => {
     return connections.map(conn => {
       const fromEl = elements.find(el => el.id === conn.from);
@@ -345,10 +383,16 @@ const Project = () => {
       
       if (!fromEl || !toEl) return null;
       
-      const fromX = conn.fromIsTop ? fromEl.x + fromEl.width / 2 : fromEl.x + fromEl.width;
-      const fromY = conn.fromIsTop ? fromEl.y - 10 : fromEl.y + fromEl.height / 2;
-      const toX = conn.toIsTop ? toEl.x + toEl.width / 2 : toEl.x;
-      const toY = conn.toIsTop ? toEl.y - 10 : toEl.y + toEl.height / 2;
+      const { fromX, fromY, toX, toY } = calculateConnectionPath(
+        fromEl, 
+        toEl, 
+        conn.fromField, 
+        conn.toField
+      );
+      
+      // Calculate control points for smooth curve
+      const controlX1 = fromX + Math.max(50, (toX - fromX) / 2);
+      const controlX2 = toX - Math.max(50, (toX - fromX) / 2);
       
       return (
         <svg 
@@ -356,26 +400,45 @@ const Project = () => {
           className="absolute top-0 left-0 w-full h-full pointer-events-none"
         >
           <path
-            d={`M${fromX},${fromY} C${fromX + 50},${fromY} ${toX - 50},${toY} ${toX},${toY}`}
+            d={`M${fromX},${fromY} C${controlX1},${fromY} ${controlX2},${toY} ${toX},${toY}`}
             stroke="#6366f1"
             strokeWidth="2"
             fill="none"
             markerEnd="url(#arrowhead)"
           />
-          <circle 
-            cx={fromX} 
-            cy={fromY} 
-            r="5" 
-            fill="#6366f1" 
-            className="cursor-pointer pointer-events-auto"
-            onClick={() => deleteConnection(conn.id)}
-          />
+          
+          {/* Connection label */}
+          <foreignObject 
+            x={(fromX + toX) / 2 - 50} 
+            y={(fromY + toY) / 2 - 15} 
+            width="100" 
+            height="30"
+            className="pointer-events-auto"
+          >
+            <div className="flex flex-col items-center">
+              <select
+                value={conn.type}
+                onChange={(e) => updateConnection(conn.id, { type: e.target.value })}
+                className="text-xs bg-white border border-gray-300 rounded p-1 mb-1"
+              >
+                {relationshipTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+              <button 
+                onClick={() => deleteConnection(conn.id)}
+                className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200"
+              >
+                Delete
+              </button>
+            </div>
+          </foreignObject>
         </svg>
       );
     });
   };
 
-  if (loading) {
+  if (!loading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>
@@ -387,16 +450,13 @@ const Project = () => {
     <div className="relative w-full h-[90vh] bg-gray-50 overflow-hidden flex flex-row justify-center">
       {/* Toolbar */}
       <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-md p-2 flex flex-col space-y-2">
-        {elementTypes.map((item) => (
-          <button
-            key={item.type}
-            onClick={() => addElement(item.type)}
-            className={`p-2 rounded-md hover:bg-gray-100 ${item.color} ${item.textColor}`}
-            title={`Add ${item.type}`}
-          >
-            {item.icon}
-          </button>
-        ))}
+        <button
+          onClick={addTable}
+          className="p-2 rounded-md hover:bg-gray-100 bg-blue-100 text-blue-800"
+          title="Add table"
+        >
+          <FiTable />
+        </button>
         <div className="border-t border-gray-200 my-1"></div>
         <button 
           onClick={() => setZoom(zoom + 10)} 
@@ -417,7 +477,7 @@ const Project = () => {
           <button 
             onClick={deleteSelectedElement}
             className="p-2 rounded-md hover:bg-gray-100 text-red-500"
-            title="Delete selected element"
+            title="Delete selected table"
           >
             <FiTrash2 />
           </button>
@@ -474,13 +534,13 @@ const Project = () => {
           </defs>
         </svg>
 
-        {/* Database elements */}
+        {/* Database tables */}
         {elements.map((element) => {
           const elementType = elementTypes.find(t => t.type === element.type);
           return (
             <div
               key={element.id}
-              className={`absolute rounded-lg border-2 shadow-md ${elementType.color} ${selectedElement === element.id ? 'border-purple-500' : 'border-gray-300'}`}
+              className={`absolute rounded-lg border-2 shadow-md min-w-[300px] ${elementType.color} ${selectedElement === element.id ? 'border-purple-500' : 'border-gray-300'}`}
               style={{
                 left: `${element.x}px`,
                 top: `${element.y}px`,
@@ -490,25 +550,21 @@ const Project = () => {
               onClick={() => setSelectedElement(element.id)}
               onMouseDown={(e) => handleElementMove(element.id, e)}
             >
-              {/* Top connection dot */}
-              <div 
-                className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full bg-gray-400 cursor-pointer hover:bg-gray-600"
-                onMouseDown={(e) => { e.stopPropagation(); startConnection(element.id, true, true); }}
-                title="Create connection from top"
-              />
-
               {/* Element header */}
               <div className={`flex items-center p-2 border-b ${elementType.textColor} font-medium`}>
                 {editingField === `name-${element.id}` ? (
-                  <input
-                    type="text"
-                    value={element.name}
-                    onChange={(e) => updateElementName(element.id, e.target.value)}
-                    onBlur={() => setEditingField(null)}
-                    onKeyPress={(e) => e.key === 'Enter' && setEditingField(null)}
-                    className="w-full bg-transparent border-b border-gray-400 focus:outline-none"
-                    autoFocus
-                  />
+                  <>
+                    {elementType.icon}
+                    <input
+                      type="text"
+                      value={element.name}
+                      onChange={(e) => updateElementName(element.id, e.target.value)}
+                      onBlur={() => setEditingField(null)}
+                      onKeyPress={(e) => e.key === 'Enter' && setEditingField(null)}
+                      className="w-full bg-transparent border-b border-gray-400 focus:outline-none ml-2"
+                      autoFocus
+                    />
+                  </>
                 ) : (
                   <>
                     {elementType.icon}
@@ -520,28 +576,25 @@ const Project = () => {
                     </span>
                   </>
                 )}
-                <div className="ml-auto flex space-x-1">
-                  <button 
-                    className={`p-1 rounded hover:bg-white hover:bg-opacity-30 ${element.fields.some(f => f.isPrimary) ? 'text-yellow-600' : 'text-gray-600'}`}
-                    onMouseDown={(e) => { e.stopPropagation(); startConnection(element.id, true); }}
-                    title="Create connection from this element"
-                  >
-                    <FiKey size={14} />
-                  </button>
-                  <button 
-                    className="p-1 rounded hover:bg-white hover:bg-opacity-30"
-                    onMouseDown={(e) => { e.stopPropagation(); startConnection(element.id, false); }}
-                    title="Create connection to this element"
-                  >
-                    <FaArrowRight size={14} />
-                  </button>
-                </div>
               </div>
 
-              {/* Element fields */}
+              {/* Table fields */}
               <div className="p-2">
                 {element.fields?.map((field) => (
-                  <div key={field.id} className="flex items-center py-1 px-2 text-sm hover:bg-white hover:bg-opacity-30 rounded group">
+                  <div 
+                    key={field.id} 
+                    className="flex items-center py-1 px-2 text-sm hover:bg-white hover:bg-opacity-30 rounded group"
+                    onMouseDown={(e) => {
+                      if (isConnecting) {
+                        e.stopPropagation();
+                        if (connectionStart) {
+                          completeConnection(element.id, field.id);
+                        } else {
+                          startConnection(element.id, field.id);
+                        }
+                      }
+                    }}
+                  >
                     {editingField === `field-${field.id}` ? (
                       <div className="flex items-center w-full">
                         <button 
@@ -580,8 +633,7 @@ const Project = () => {
                     ) : (
                       <>
                         <button 
-                          className={`p-1 mr-1 rounded ${field.isPrimary ? 'text-yellow-600' : 'text-gray-400 hover:text-gray-600'}`}
-                          onClick={() => togglePrimaryKey(element.id, field.id)}
+                          className={`p-1 mr-1 ${field.isPrimary ? 'text-yellow-600' : 'text-gray-400'}`}
                           title={field.isPrimary ? 'Primary key' : 'Set as primary key'}
                         >
                           <FiKey size={12} />
@@ -612,7 +664,7 @@ const Project = () => {
                     value={newFieldName}
                     onChange={(e) => setNewFieldName(e.target.value)}
                     placeholder="Field name"
-                    className="flex-1 text-sm border-b border-gray-400 focus:outline-none bg-transparent"
+                    className="flex-1 text-sm ml-2 border-b border-gray-400 focus:outline-none bg-transparent max-w-[150px]"
                     onKeyPress={(e) => e.key === 'Enter' && addField(element.id)}
                   />
                   <select
@@ -634,13 +686,23 @@ const Project = () => {
                 </div>
               </div>
 
-              {/* Connection points */}
-              {isConnecting && connectionStart?.elementId !== element.id && (
-                <div 
-                  className="absolute inset-0 border-2 border-dashed border-purple-400 rounded-lg pointer-events-none"
-                  onClick={() => completeConnection(element.id)}
-                />
-              )}
+              {/* Connection button */}
+              <div className="absolute -right-3 top-1/2 transform -translate-y-1/2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isConnecting && connectionStart) {
+                      completeConnection(element.id);
+                    } else {
+                      startConnection(element.id);
+                    }
+                  }}
+                  className={`w-6 h-6 rounded-full flex items-center justify-center ${isConnecting ? 'bg-purple-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+                  title={isConnecting ? 'Complete connection' : 'Start new connection'}
+                >
+                  <FiPlus size={14} />
+                </button>
+              </div>
             </div>
           );
         })}
@@ -649,7 +711,7 @@ const Project = () => {
       {/* Status bar */}
       <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 text-sm text-gray-600 flex justify-between">
         <div>
-          {elements.length} elements | {connections.length} connections
+          {elements.length} tables | {connections.length} relationships
           {saving && <span className="ml-4 text-blue-600">Saving...</span>}
         </div>
         <div>

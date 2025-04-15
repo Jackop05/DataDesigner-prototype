@@ -5,7 +5,7 @@ import { BsArrowRight } from "react-icons/bs";
 import axios from "axios";
 
 const Main = () => {
-  const [projects, setProjects] = useState([]);
+  const [data, setData] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const aboutRef = useRef(null);
@@ -27,12 +27,13 @@ const Main = () => {
 
   const fetchUserProjects = async (token) => {
     try {
-      const response = await axios.get('/api/projects', {
+      const response = await axios.get(`http://localhost:5000/api/user/get-user-data/${token}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      setProjects(response.data.projects);
+      console.log(response.data);
+      setData(response.data);
     } catch (error) {
       console.error('Error fetching projects:', error);
     } finally {
@@ -51,6 +52,8 @@ const Main = () => {
     navigate('/');
   };
 
+  console.log(data);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
@@ -67,7 +70,7 @@ const Main = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            {user ? (
+            {!data ? (
               <>
                 <Link to="/dashboard" className="px-4 py-2 text-gray-700 hover:text-purple-600 transition-colors cursor-pointer">
                   Dashboard
