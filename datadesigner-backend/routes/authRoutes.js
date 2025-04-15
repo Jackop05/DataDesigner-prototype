@@ -48,7 +48,7 @@ router.post('/login', async (req, res) => {
 
     res.cookie("jwt_token", jwt_token, {
       httpOnly: true,
-      secure: true,
+      secure: false,
       maxAge: 60 * 60 * 1000
     })
 
@@ -119,7 +119,7 @@ router.post('/logout', async (req, res) => {
     try {       
       res.clearCookie("jwt_token", {
         httpOnly: true,
-        secure: true,
+        secure: false,
         sameSite: "Strict"
       });
 

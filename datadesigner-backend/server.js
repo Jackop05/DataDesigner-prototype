@@ -1,18 +1,19 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors"); // Import CORS
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
 const app = express();
 
 // Enable CORS for all routes (or restrict to your frontend origin)
 app.use(cors({
-  origin: "http://localhost:5173", // Allow only your frontend
-  methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
-  credentials: true, // Allow cookies (if needed)
+  origin: "http://localhost:5173", 
+  methods: ["GET", "POST", "PUT", "DELETE"], 
+  credentials: true, 
 }));
-
-app.use(express.json()); // Middleware to parse JSON
+app.use(cookieParser());
+app.use(express.json()); 
 
 // Rest of your code...
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -25,5 +26,5 @@ app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/element", require("./routes/elementRoutes"));
 app.use("/api/user", require("./routes/userRoutes"));
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4321;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
