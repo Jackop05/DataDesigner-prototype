@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiTable, FiColumns, FiKey, FiPlus, FiMinus, FiTrash2, FiX } from 'react-icons/fi';
+import { FiTable, FiColumns, FiPlus, FiMinus, FiTrash2, FiX } from 'react-icons/fi';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -17,9 +17,9 @@ const Project = () => {
   const [connectionStart, setConnectionStart] = useState(null);
   const [zoom, setZoom] = useState(100);
   const [gridSize, setGridSize] = useState(20);
-  const [editingField, setEditingField] = useState(null);
-  const [newFieldName, setNewFieldName] = useState('');
-  const [newFieldType, setNewFieldType] = useState('text');
+  const [editingFields, setEditingFields] = useState({});
+  const [newFieldNames, setNewFieldNames] = useState({});
+  const [newFieldTypes, setNewFieldTypes] = useState({});
   const boardRef = useRef(null);
   const [boardPosition, setBoardPosition] = useState({ x: 0, y: 0 });
 
@@ -39,22 +39,14 @@ const Project = () => {
       id: element.id,
       type: 'table',
       name: element.name,
-      x: 100 + Math.random() * 200, // Random position for demo
-      y: 100 + Math.random() * 200,
-      width: 200,
-      height: 120,
-      fields: [] // Initialize empty fields, you might want to populate these from your API
+      x: element.x || 100 + Math.random() * 200,
+      y: element.y || 100 + Math.random() * 200,
+      width: element.width || 200,
+      height: element.height || 120,
+      fields: element.fields || []
     }));
 
-    const transformedConnections = apiData.project.elements.flatMap(element => {
-      if (!element.connections) return [];
-      return element.connections.map(connection => ({
-        id: connection.id,
-        from: element.id,
-        to: connection.id, // This might need adjustment based on your actual connection structure
-        type: 'one-to-many' // Default relationship type
-      }));
-    });
+    const transformedConnections = apiData.project.connections || [];
 
     return {
       elements: transformedElements,
@@ -74,9 +66,18 @@ const Project = () => {
         });
         
         const transformedData = transformApiData(response.data);
-        console.log(transformedData)
         setElements(transformedData.elements);
         setConnections(transformedData.connections);
+        
+        // Initialize field editing states
+        const initialFieldStates = {};
+        transformedData.elements.forEach(el => {
+          initialFieldStates[el.id] = {};
+          el.fields?.forEach(field => {
+            initialFieldStates[el.id][field.id] = false;
+          });
+        });
+        setEditingFields(initialFieldStates);
       } catch (error) {
         console.error("Error loading project:", error);
       } finally {
@@ -101,7 +102,7 @@ const Project = () => {
     const baseHeight = 120;
     const fieldHeight = 30;
     const initialFields = [
-      { id: `field-${Date.now()}`, name: 'id', type: 'integer', isPrimary: true },
+      { id: `field-${Date.now()}`, name: 'id', type: 'integer' },
       { id: `field-${Date.now() + 1}`, name: 'created_at', type: 'timestamp' }
     ];
 
@@ -115,7 +116,12 @@ const Project = () => {
       height: baseHeight + (initialFields.length * fieldHeight),
       fields: initialFields
     };
+    
     setElements([...elements, newElement]);
+    setEditingFields({
+      ...editingFields,
+      [newElement.id]: {}
+    });
   };
 
   // Save project manually
@@ -136,6 +142,11 @@ const Project = () => {
           height: element.height,
           type: element.type,
           name: element.name,
+          fields: element.fields.map(field => ({
+            id: field.id,
+            name: field.name,
+            type: field.type
+          })),
           connections: connections
             .filter(conn => conn.from === element.id)
             .map(conn => ({ id: conn.id }))
@@ -144,11 +155,11 @@ const Project = () => {
           id: connection.id,
           from: connection.from,
           to: connection.to,
-          type: connection.type
+          type: connection.type,
+          fromField: connection.fromField,
+          toField: connection.toField
         }))
       };
-
-      console.log(apiData)
 
       await axios.post(`http://localhost:4321/api/element/${projectId}/post-project-data`, apiData, {
         headers: {
@@ -171,13 +182,15 @@ const Project = () => {
 
   // Add new field to table
   const addField = (elementId) => {
+    const fieldName = newFieldNames[elementId] || 'new_field';
+    const fieldType = newFieldTypes[elementId] || 'text';
+    
     setElements(elements.map(el => {
       if (el.id === elementId) {
         const newFields = [...el.fields, { 
           id: `field-${Date.now()}`, 
-          name: newFieldName || 'new_field', 
-          type: newFieldType,
-          isPrimary: false 
+          name: fieldName,
+          type: fieldType
         }];
         
         return {
@@ -189,8 +202,16 @@ const Project = () => {
       }
       return el;
     }));
-    setNewFieldName('');
-    setNewFieldType('text');
+    
+    // Clear the input for this element
+    setNewFieldNames({
+      ...newFieldNames,
+      [elementId]: ''
+    });
+    setNewFieldTypes({
+      ...newFieldTypes,
+      [elementId]: 'text'
+    });
   };
 
   // Delete a field from table
@@ -207,7 +228,15 @@ const Project = () => {
       }
       return el;
     }));
-    setEditingField(null);
+    
+    // Clear editing state for this field
+    setEditingFields({
+      ...editingFields,
+      [elementId]: {
+        ...editingFields[elementId],
+        [fieldId]: false
+      }
+    });
   };
 
   // Update field properties
@@ -228,17 +257,15 @@ const Project = () => {
     }));
   };
 
-  // Toggle primary key status
-  const togglePrimaryKey = (elementId, fieldId) => {
-    setElements(elements.map(el => 
-      el.id === elementId ? { 
-        ...el, 
-        fields: el.fields.map(f => ({
-          ...f,
-          isPrimary: f.id === fieldId ? !f.isPrimary : false
-        }))
-      } : el
-    ));
+  // Toggle field editing mode
+  const toggleFieldEditing = (elementId, fieldId) => {
+    setEditingFields({
+      ...editingFields,
+      [elementId]: {
+        ...editingFields[elementId],
+        [fieldId]: !editingFields[elementId]?.[fieldId]
+      }
+    });
   };
 
   // Handle table movement
@@ -299,7 +326,7 @@ const Project = () => {
             to: elementId,
             fromField: connectionStart.fieldId,
             toField: fieldId,
-            type: 'one-to-many', // Default relationship type
+            type: 'one-to-many',
             fromFieldName: fromField?.name,
             toFieldName: toField?.name
           }
@@ -379,21 +406,18 @@ const Project = () => {
 
   // Calculate connection path points
   const calculateConnectionPath = (fromEl, toEl, fromFieldId = null, toFieldId = null) => {
-    // If connecting specific fields
     if (fromFieldId && toFieldId) {
       const fromFieldIndex = fromEl.fields.findIndex(f => f.id === fromFieldId);
       const toFieldIndex = toEl.fields.findIndex(f => f.id === toFieldId);
       
       const fromX = fromEl.x + fromEl.width;
-      const fromY = fromEl.y + 60 + (fromFieldIndex * 30); // 60 is header height + padding
-      
+      const fromY = fromEl.y + 60 + (fromFieldIndex * 30);
       const toX = toEl.x;
       const toY = toEl.y + 60 + (toFieldIndex * 30);
       
       return { fromX, fromY, toX, toY };
     }
     
-    // Default connection between tables (center points)
     const fromX = fromEl.x + fromEl.width;
     const fromY = fromEl.y + fromEl.height / 2;
     const toX = toEl.x;
@@ -417,7 +441,6 @@ const Project = () => {
         conn.toField
       );
       
-      // Calculate control points for smooth curve
       const controlX1 = fromX + Math.max(50, (toX - fromX) / 2);
       const controlX2 = toX - Math.max(50, (toX - fromX) / 2);
       
@@ -434,7 +457,6 @@ const Project = () => {
             markerEnd="url(#arrowhead)"
           />
           
-          {/* Connection label */}
           <foreignObject 
             x={(fromX + toX) / 2 - 50} 
             y={(fromY + toY) / 2 - 15} 
@@ -579,30 +601,16 @@ const Project = () => {
             >
               {/* Element header */}
               <div className={`flex items-center p-2 border-b ${elementType.textColor} font-medium`}>
-                {editingField === `name-${element.id}` ? (
-                  <>
-                    {elementType.icon}
-                    <input
-                      type="text"
-                      value={element.name}
-                      onChange={(e) => updateElementName(element.id, e.target.value)}
-                      onBlur={() => setEditingField(null)}
-                      onKeyPress={(e) => e.key === 'Enter' && setEditingField(null)}
-                      className="w-full bg-transparent border-b border-gray-400 focus:outline-none ml-2"
-                      autoFocus
-                    />
-                  </>
-                ) : (
-                  <>
-                    {elementType.icon}
-                    <span 
-                      className="ml-2 cursor-text"
-                      onClick={(e) => { e.stopPropagation(); setEditingField(`name-${element.id}`); }}
-                    >
-                      {element.name}
-                    </span>
-                  </>
-                )}
+                {elementType.icon}
+                <span 
+                  className="ml-2 cursor-text"
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    updateElementName(element.id, prompt('Enter new table name:', element.name) || element.name);
+                  }}
+                >
+                  {element.name}
+                </span>
               </div>
 
               {/* Table fields */}
@@ -622,21 +630,14 @@ const Project = () => {
                       }
                     }}
                   >
-                    {editingField === `field-${field.id}` ? (
+                    {editingFields[element.id]?.[field.id] ? (
                       <div className="flex items-center w-full">
-                        <button 
-                          className={`p-1 mr-1 rounded ${field.isPrimary ? 'text-yellow-600' : 'text-gray-400'}`}
-                          onClick={() => togglePrimaryKey(element.id, field.id)}
-                          title={field.isPrimary ? 'Primary key' : 'Set as primary key'}
-                        >
-                          <FiKey size={12} />
-                        </button>
                         <input
                           type="text"
                           value={field.name}
                           onChange={(e) => updateField(element.id, field.id, { name: e.target.value })}
-                          onBlur={() => setEditingField(null)}
-                          onKeyPress={(e) => e.key === 'Enter' && setEditingField(null)}
+                          onBlur={() => toggleFieldEditing(element.id, field.id)}
+                          onKeyPress={(e) => e.key === 'Enter' && toggleFieldEditing(element.id, field.id)}
                           className="flex-1 bg-transparent border-b border-gray-400 focus:outline-none"
                           autoFocus
                         />
@@ -659,22 +660,22 @@ const Project = () => {
                       </div>
                     ) : (
                       <>
-                        <button 
-                          className={`p-1 mr-1 ${field.isPrimary ? 'text-yellow-600' : 'text-gray-400'}`}
-                          title={field.isPrimary ? 'Primary key' : 'Set as primary key'}
-                        >
-                          <FiKey size={12} />
-                        </button>
                         <span 
-                          className="font-mono cursor-text"
-                          onClick={(e) => { e.stopPropagation(); setEditingField(`field-${field.id}`); }}
+                          className="font-mono cursor-text flex-1"
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            toggleFieldEditing(element.id, field.id);
+                          }}
                         >
                           {field.name}
                         </span>
-                        <span className="ml-auto text-gray-500 text-xs">{field.type}</span>
+                        <span className="text-gray-500 text-xs">{field.type}</span>
                         <button 
                           className="ml-2 p-1 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-500"
-                          onClick={(e) => { e.stopPropagation(); deleteField(element.id, field.id); }}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            deleteField(element.id, field.id);
+                          }}
                           title="Delete field"
                         >
                           <FiX size={12} />
@@ -688,15 +689,21 @@ const Project = () => {
                 <div className="mt-2 flex items-center">
                   <input
                     type="text"
-                    value={newFieldName}
-                    onChange={(e) => setNewFieldName(e.target.value)}
+                    value={newFieldNames[element.id] || ''}
+                    onChange={(e) => setNewFieldNames({
+                      ...newFieldNames,
+                      [element.id]: e.target.value
+                    })}
                     placeholder="Field name"
                     className="flex-1 text-sm ml-2 border-b border-gray-400 focus:outline-none bg-transparent max-w-[150px]"
                     onKeyPress={(e) => e.key === 'Enter' && addField(element.id)}
                   />
                   <select
-                    value={newFieldType}
-                    onChange={(e) => setNewFieldType(e.target.value)}
+                    value={newFieldTypes[element.id] || 'text'}
+                    onChange={(e) => setNewFieldTypes({
+                      ...newFieldTypes,
+                      [element.id]: e.target.value
+                    })}
                     className="ml-2 text-sm border-b border-gray-400 focus:outline-none bg-transparent"
                   >
                     {fieldTypes.map(type => (
