@@ -119,39 +119,13 @@ router.post('/new-project', async (req, res) => {
 
 router.get('/get-project-data/:projectId', async (req, res) => {
   try {
-    const token = req.cookies.jwt_token;
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "No token found"
-      });
-    }
-
-    if (!process.env.JWT_SECRET) {
-      throw new Error("No JWT_SECRET found in .env file");
-    }
-
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    if (!decodedToken) {
-      return res.status(403).json({
-        success: false,
-        message: "Invalid token"
-      });
-    }
-
-    const userId = decodedToken.userId;
     const { projectId } = req.params;
 
-    // Verify access
-    const user = await User.findOne({ _id: userId, projects: projectId });
-    if (!user) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized access"
-      });
-    }
+    const Project = require('../models/Project');
+    const Element = require('../models/Element');
+    const Connection = require('../models/Connection');
 
-    // Fetch the project
+    // Fetch project
     const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({
@@ -160,42 +134,52 @@ router.get('/get-project-data/:projectId', async (req, res) => {
       });
     }
 
-    // Manually get each element
-    const rawElements = await Promise.all(
-      project.elements.map(async (elementId) => {
-        const element = await require('../models/Element').findById(elementId);
-        if (!element) return null;
+    // Get all elements in the project
+    const elements = await Element.find({ _id: { $in: project.elements } });
 
-        // Manually get each connection for the element
-        const connections = await Promise.all(
-          element.connections.map(async (connId) => {
-            const connection = await require('../models/Connection').findById(connId);
-            return connection ? {
-              id: connection._id,
-              positionsX: connection.positionsX,
-              positionsY: connection.positionsY,
-              color: connection.color
-            } : null;
-          })
-        );
+    // Get all connections in the project
+    const connections = await Connection.find({ _id: { $in: project.connections } });
 
-        return {
-          id: element._id,
-          name: element.name,
-          position: element.position,
-          backgroundColor: element.backgroundColor,
-          borderColor: element.borderColor,
-          attributes: element.attributes,
-          fontSize: element.fontSize,
-          color: element.color,
-          connections: connections.filter(c => c !== null)
-        };
-      })
-    );
+    // Format elements
+    const formattedElements = elements.map(el => ({
+      id: el.id,
+      type: el.type,
+      name: el.name,
+      x: el.x,
+      y: el.y,
+      width: el.width,
+      height: el.height,
+      fields: el.fields.map(field => ({
+        id: field.id,
+        name: field.name,
+        type: field.type,
+        isPrimary: field.isPrimary
+      }))
+    }));
+
+    // Format connections
+    const formattedConnections = connections.map(conn => ({
+      id: conn._id,
+      from: conn.from,
+      to: conn.to,
+      type: conn.type,
+      label: conn.label,
+      color: conn.color,
+      positionsX: conn.positionsX,
+      positionsY: conn.positionsY,
+      strokeWidth: conn.strokeWidth,
+      dashStyle: conn.dashStyle,
+      arrowStart: conn.arrowStart,
+      arrowEnd: conn.arrowEnd,
+      metadata: conn.metadata || {}
+    }));
 
     const finalProject = {
       id: project._id,
-      elements: rawElements.filter(e => e !== null),
+      name: project.name,
+      description: project.description,
+      elements: formattedElements,
+      connections: formattedConnections,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt
     };
@@ -213,5 +197,7 @@ router.get('/get-project-data/:projectId', async (req, res) => {
     });
   }
 });
+
+
 
 module.exports = router;

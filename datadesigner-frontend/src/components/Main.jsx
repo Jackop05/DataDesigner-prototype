@@ -27,7 +27,7 @@ const Main = () => {
 
   const fetchUserProjects = async (token) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/user/get-user-data/${token}`, {
+      const response = await axios.get(`http://localhost:4321/api/user/get-user-data/${token}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }

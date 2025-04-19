@@ -31,22 +31,54 @@ const Project = () => {
   const fieldTypes = ['integer', 'text', 'varchar', 'boolean', 'timestamp', 'date', 'float', 'json'];
   const relationshipTypes = ['one-to-one', 'one-to-many', 'many-to-many'];
 
+  // Transform API data to internal format
+  const transformApiData = (apiData) => {
+    if (!apiData || !apiData.project) return { elements: [], connections: [] };
+    
+    const transformedElements = apiData.project.elements.map(element => ({
+      id: element.id,
+      type: 'table',
+      name: element.name,
+      x: 100 + Math.random() * 200, // Random position for demo
+      y: 100 + Math.random() * 200,
+      width: 200,
+      height: 120,
+      fields: [] // Initialize empty fields, you might want to populate these from your API
+    }));
+
+    const transformedConnections = apiData.project.elements.flatMap(element => {
+      if (!element.connections) return [];
+      return element.connections.map(connection => ({
+        id: connection.id,
+        from: element.id,
+        to: connection.id, // This might need adjustment based on your actual connection structure
+        type: 'one-to-many' // Default relationship type
+      }));
+    });
+
+    return {
+      elements: transformedElements,
+      connections: transformedConnections
+    };
+  };
+
   // Load project data
   useEffect(() => {
     const fetchProject = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`http://localhost:5000/api/projects/${projectId}`, {
+        const response = await axios.get(`http://localhost:4321/api/user/get-project-data/${projectId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
         
-        setElements(response.data.elements || []);
-        setConnections(response.data.connections || []);
+        const transformedData = transformApiData(response.data);
+        console.log(transformedData)
+        setElements(transformedData.elements);
+        setConnections(transformedData.connections);
       } catch (error) {
         console.error("Error loading project:", error);
-        navigate('/dashboard');
       } finally {
         setLoading(false);
       }
@@ -56,33 +88,6 @@ const Project = () => {
       fetchProject();
     }
   }, [projectId, navigate]);
-
-  // Auto-save functionality
-  useEffect(() => {
-    const autoSave = async () => {
-      if (!projectId || loading) return;
-      
-      try {
-        setSaving(true);
-        const token = localStorage.getItem('token');
-        await axios.put(`http://localhost:5000/api/projects/${projectId}`, {
-          elements,
-          connections
-        }, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-      } catch (error) {
-        console.error("Error saving project:", error);
-      } finally {
-        setSaving(false);
-      }
-    };
-
-    const saveInterval = setInterval(autoSave, 30000);
-    return () => clearInterval(saveInterval);
-  }, [projectId, elements, connections, loading]);
 
   // Calculate required width based on content
   const calculateRequiredWidth = (fields) => {
@@ -120,10 +125,32 @@ const Project = () => {
     try {
       setSaving(true);
       const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:5000/api/projects/${projectId}`, {
-        elements,
-        connections
-      }, {
+      
+      // Transform data back to API format before saving
+      const apiData = {
+        elements: elements.map(element => ({
+          id: element.id,
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height,
+          type: element.type,
+          name: element.name,
+          connections: connections
+            .filter(conn => conn.from === element.id)
+            .map(conn => ({ id: conn.id }))
+        })),
+        connections: connections.map(connection => ({
+          id: connection.id,
+          from: connection.from,
+          to: connection.to,
+          type: connection.type
+        }))
+      };
+
+      console.log(apiData)
+
+      await axios.post(`http://localhost:4321/api/element/${projectId}/post-project-data`, apiData, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -438,7 +465,7 @@ const Project = () => {
     });
   };
 
-  if (!loading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div>

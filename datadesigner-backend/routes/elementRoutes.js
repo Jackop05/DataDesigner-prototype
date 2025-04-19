@@ -14,14 +14,11 @@ router.post('/:projectId/post-project-data', async (req, res) => {
       return res.status(404).json({ msg: 'Project not found' });
     }
 
-    // Update timestamp
-    project.updatedAt = new Date();
+    project.updatedAt = new Date(); 
 
-    // Track updated references
     const newElementIds = [];
     const newConnectionIds = [];
 
-    // Fetch existing elements and connections
     const existingElements = await Element.find({ project: projectId });
     const existingConnections = await Connection.find({ project: projectId });
 
@@ -30,13 +27,33 @@ router.post('/:projectId/post-project-data', async (req, res) => {
 
     // --- Handle Elements ---
     for (let element of elements) {
+      // Ensure fields are correctly structured
+      const safeFields = Array.isArray(element.fields)
+        ? element.fields.map(field => ({
+            id: field.id,
+            name: field.name,
+            type: field.type,
+            isPrimary: !!field.isPrimary
+          }))
+        : [];
+
       let found = await Element.findOne({ id: element.id, project: projectId });
       if (found) {
-        Object.assign(found, element);
+        found.name = element.name;
+        found.type = element.type;
+        found.x = element.x;
+        found.y = element.y;
+        found.width = element.width;
+        found.height = element.height;
+        found.fields = safeFields;
         await found.save();
         newElementIds.push(found._id);
       } else {
-        const newElement = new Element({ ...element, project: projectId });
+        const newElement = new Element({
+          ...element,
+          fields: safeFields,
+          project: projectId
+        });
         await newElement.save();
         newElementIds.push(newElement._id);
       }
@@ -75,10 +92,9 @@ router.post('/:projectId/post-project-data', async (req, res) => {
       });
     }
 
-    // Update project references
+    // Update references
     project.elements = newElementIds;
     project.connections = newConnectionIds;
-
     await project.save();
 
     res.json({ msg: 'Project data saved successfully', elements, connections });
