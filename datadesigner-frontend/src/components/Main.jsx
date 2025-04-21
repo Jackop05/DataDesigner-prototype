@@ -207,39 +207,10 @@ const Main = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {(data ? projects : [
-              {
-                id: 1,
-                name: "E-Commerce Database",
-                description: "Complete database schema for online store",
-                category: "Database Design",
-                color: "bg-purple-100"
-              },
-              {
-                id: 2,
-                name: "Social Media Schema",
-                description: "Relationship model for social platform",
-                category: "Schema Design",
-                color: "bg-blue-100"
-              },
-              {
-                id: 3,
-                name: "Inventory System",
-                description: "Database structure for warehouse management",
-                category: "Data Model",
-                color: "bg-green-100"
-              },
-              {
-                id: 4,
-                name: "School Management",
-                description: "ER diagram for educational institution",
-                category: "Entity Relationships",
-                color: "bg-yellow-100"
-              }
-            ]).map((project) => (
+            {data.map((project) => (
               <Link 
-                to={data ? `/project/${project.id}` : "/register"} 
-                key={project.id} 
+                to={data ? `/project/${project?.id}` : "/register"} 
+                key={project?.id} 
                 className="group rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer"
               >
                 <div className={`h-48 ${project.color || 'bg-gray-100'} flex items-center justify-center`}>
