@@ -5,7 +5,7 @@ import { BsArrowRight } from "react-icons/bs";
 import axios from "axios";
 
 const Main = () => {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState(undefined);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const aboutRef = useRef(null);

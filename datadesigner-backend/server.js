@@ -8,7 +8,7 @@ const app = express();
 
 // Enable CORS for all routes (or restrict to your frontend origin)
 app.use(cors({
-  origin: "http://localhost:5173", 
+  origin: [ "http://localhost:5173", "https://schemai.online"], 
   methods: ["GET", "POST", "PUT", "DELETE"], 
   credentials: true, 
 }));
