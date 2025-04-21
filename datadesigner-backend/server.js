@@ -7,12 +7,13 @@ require("dotenv").config();
 const app = express();
 
 // Enable CORS for all routes (or restrict to your frontend origin)
+app.options('*', cors()); 
+
 app.use(cors({
-  origin: "*",
+  origin: "https://schemai.online", // Your frontend origin
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
-
 app.use(cookieParser());
 app.use(express.json()); 
 

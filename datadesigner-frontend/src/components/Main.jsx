@@ -41,15 +41,14 @@ const Main = () => {
     try {
       const projectsData = await Promise.all(
         projectIds.map(async (id) => {
-          const response = await axios.get(
-            `${import.meta.env.VITE_API_URL}/api/user/get-project-data/${id}`,
-            { 
-              withCredentials: true,
-              headers: {
-                "Content-Type": "application/json",
-              }
-             }
-          );
+          const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user/get-user-data`, {
+            withCredentials: true,
+            headers: {
+              "Content-Type": "application/json",
+              // You might need to add this if you're dealing with CORS and credentials
+              "Access-Control-Allow-Credentials": "true"
+            }
+          });
           return response.data.project;
         })
       );
