@@ -42,8 +42,9 @@ const Main = () => {
   const fetchProjects = async () => {
     try {
       if (data.projects != null) {
+        console.log('data.projects', data.projects);
         const projectsData = await Promise.all(
-          data.projects.map(async (id) => {
+          data.projects?.map(async (id) => {
             const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user/get-project-data/${id}`, {
               withCredentials: true,
               headers: {
