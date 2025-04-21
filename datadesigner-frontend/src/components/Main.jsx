@@ -39,33 +39,29 @@ const Main = () => {
     }
   };
 
-  const fetchProjects = async () => {
-    try {
-      if (data?.projects != null) {
-        console.log('data.projects', data.projects);
-        const projectsData = await Promise.all(
-          data.projects?.map(async (id) => {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user/get-project-data/${id}`, {
-              withCredentials: true,
-              headers: {
-                "Content-Type": "application/json",
-                // You might need to add this if you're dealing with CORS and credentials
-                "Access-Control-Allow-Credentials": "true"
-              }
-            });
-            return response.data.project;
-          })
-        );
-
-        setProjects(projectsData);
-        console.log(projectsData);
-      }
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const fetchProjects = async () => {
+  //   try {
+  //     const projectsData = await Promise.all(
+  //       data.projects.map(async (id) => {
+  //         const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user//get-project-data/${id}`, {
+  //           withCredentials: true,
+  //           headers: {
+  //             "Content-Type": "application/json",
+  //             // You might need to add this if you're dealing with CORS and credentials
+  //             "Access-Control-Allow-Credentials": "true"
+  //           }
+  //         });
+  //         return response.data.project;
+  //       })
+  //     );
+  //     setProjects(projectsData);
+  //     console.log(projectsData);
+  //   } catch (error) {
+  //     console.error('Error fetching projects:', error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const scrollToSection = (ref) => {
     ref.current?.scrollIntoView({ behavior: "smooth" });
@@ -212,9 +208,9 @@ const Main = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {projects.map((project) => (
+            {data.map((project) => (
               <Link 
-                to={data.projects ? `/project/${project.id}` : "/register"} 
+                to={data ? `/project/${project.id}` : "/register"} 
                 key={project.id} 
                 className="group rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer"
               >
