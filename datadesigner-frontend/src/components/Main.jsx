@@ -20,9 +20,6 @@ const Main = () => {
     try {
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user/get-user-data`, {
         withCredentials: true,
-        headers: {
-          "Content-Type": "application/json",
-        }
       });
       console.log("data: ", response.data);
       setData(response.data.data);
@@ -76,9 +73,6 @@ const Main = () => {
         { projectName },
         {
           withCredentials: true,
-          headers: {
-            "Content-Type": "application/json",
-          }
         }
       );
   
