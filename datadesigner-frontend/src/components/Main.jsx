@@ -41,7 +41,7 @@ const Main = () => {
 
   const fetchProjects = async () => {
     try {
-      if (data.projects != null) {
+      if (data? .projects != null) {
         console.log('data.projects', data.projects);
         const projectsData = await Promise.all(
           data.projects?.map(async (id) => {
@@ -214,7 +214,7 @@ const Main = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {data.map((project) => (
               <Link 
-                to={data ? `/project/${project.id}` : "/register"} 
+                to={data.projects ? `/project/${project.id}` : "/register"} 
                 key={project.id} 
                 className="group rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer"
               >
