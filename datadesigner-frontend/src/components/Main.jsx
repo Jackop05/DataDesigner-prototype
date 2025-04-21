@@ -39,11 +39,11 @@ const Main = () => {
     }
   };
 
-  const fetchProjects = async (projectIds) => {
+  const fetchProjects = async () => {
     try {
       const projectsData = await Promise.all(
-        projectIds.map(async (id) => {
-          const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user/get-user-data`, {
+        data.projects.map(async (id) => {
+          const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user//get-project-data/${id}`, {
             withCredentials: true,
             headers: {
               "Content-Type": "application/json",
@@ -55,6 +55,7 @@ const Main = () => {
         })
       );
       setProjects(projectsData);
+      console.log(projectsData);
     } catch (error) {
       console.error('Error fetching projects:', error);
     } finally {
@@ -179,7 +180,7 @@ const Main = () => {
         <div className="max-w-7xl mx-auto px-6">
           <p className="text-center text-gray-500 mb-8">DESIGN YOUR DATABASE WITH EASE</p>
           <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
-            {['Data Models', 'Schema Design', 'Entity Relationships', 'SQL Generation', 'Team Collaboration'].map((feature) => (
+            {['Data Models', 'Schema Design', 'Entity Relationships', 'SQL Generation', 'Team Collaboration']?.map((feature) => (
               <div key={feature} className="text-2xl font-bold text-gray-400 hover:text-gray-600 transition-colors">
                 {feature}
               </div>
