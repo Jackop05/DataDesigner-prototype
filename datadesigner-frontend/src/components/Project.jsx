@@ -60,8 +60,11 @@ const Project = () => {
       try {
         const token = localStorage.getItem('token');
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user/get-project-data/${projectId}`, {
+          withCredentials: true,
           headers: {
-            Authorization: `Bearer ${token}`
+            "Content-Type": "application/json",
+            // You might need to add this if you're dealing with CORS and credentials
+            "Access-Control-Allow-Credentials": "true"
           }
         });
         
@@ -162,8 +165,11 @@ const Project = () => {
       };
 
       await axios.post(`${import.meta.env.VITE_API_URL}/api/element/${projectId}/post-project-data`, apiData, {
+        withCredentials: true,
         headers: {
-          Authorization: `Bearer ${token}`
+          "Content-Type": "application/json",
+          // You might need to add this if you're dealing with CORS and credentials
+          "Access-Control-Allow-Credentials": "true"
         }
       });
     } catch (error) {

@@ -68,7 +68,12 @@ const Register = () => {
         password: formData.password
       },
       { 
-        withCredentials: true, 
+        withCredentials: true,
+        headers: {
+          "Content-Type": "application/json",
+          // You might need to add this if you're dealing with CORS and credentials
+          "Access-Control-Allow-Credentials": "true"
+        }
       }
     );
 

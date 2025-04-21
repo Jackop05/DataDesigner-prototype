@@ -21,7 +21,14 @@ const Login = () => {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/auth/login`,
         { email, password },
-        { withCredentials: true } // 👈 Critical for cookies
+        { 
+          withCredentials: true,
+          headers: {
+            "Content-Type": "application/json",
+            // You might need to add this if you're dealing with CORS and credentials
+            "Access-Control-Allow-Credentials": "true"
+          }
+        }
       );
 
       // No need to handle tokens manually - they're in cookies!

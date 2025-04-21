@@ -20,9 +20,11 @@ const Main = () => {
     try {
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user/get-user-data`, {
         withCredentials: true,
-        headers: {
-          "Content-Type": "application/json",
-        }
+          headers: {
+            "Content-Type": "application/json",
+            // You might need to add this if you're dealing with CORS and credentials
+            "Access-Control-Allow-Credentials": "true"
+          }
       });
       console.log("data: ", response.data);
       setData(response.data.data);
