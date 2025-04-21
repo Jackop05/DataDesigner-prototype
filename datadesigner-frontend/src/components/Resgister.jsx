@@ -66,7 +66,11 @@ const Register = () => {
         username: formData.username,
         email: formData.email,
         password: formData.password
-      });
+      },
+      { 
+        withCredentials: true, 
+      }
+    );
 
       // Store token and user data
       localStorage.setItem('token', response.data.token);
