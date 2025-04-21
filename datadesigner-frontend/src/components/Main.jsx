@@ -42,7 +42,7 @@ const Main = () => {
   const fetchProjects = async (projectIds) => {
     try {
       const projectsData = await Promise.all(
-        projectIds?.map(async (id) => {
+        projectIds.map(async (id) => {
           const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user/get-user-data`, {
             withCredentials: true,
             headers: {
@@ -209,8 +209,8 @@ const Main = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {data.map((project) => (
               <Link 
-                to={data ? `/project/${project?.id}` : "/register"} 
-                key={project?.id} 
+                to={data ? `/project/${project.id}` : "/register"} 
+                key={project.id} 
                 className="group rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer"
               >
                 <div className={`h-48 ${project.color || 'bg-gray-100'} flex items-center justify-center`}>
