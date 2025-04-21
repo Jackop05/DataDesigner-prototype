@@ -62,7 +62,7 @@ const Register = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:4321/api/auth/register', {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
         username: formData.username,
         email: formData.email,
         password: formData.password
@@ -81,6 +81,7 @@ const Register = () => {
     } catch (err) {
       const errorMsg = err.response?.data?.message || 'Registration failed. Please try again.';
       setErrors({ form: errorMsg });
+      console.log(err)
     } finally {
       setIsLoading(false);
     }

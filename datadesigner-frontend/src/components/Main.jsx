@@ -13,26 +13,18 @@ const Main = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-      fetchUserProjects(token);
-    } else {
-      setLoading(false);
-    }
+    fetchUserProjects();
   }, []);
 
-  const fetchUserProjects = async (token) => {
+  const fetchUserProjects = async () => {
     try {
-      const response = await axios.get(`http://localhost:4321/api/user/get-user-data/${token}`, {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user/get-user-data`, {
+        withCredentials: true,
         headers: {
-          Authorization: `Bearer ${token}`
+          "Content-Type": "application/json",
         }
       });
-      console.log(response.data);
+      console.log("data: ", response.data);
       setData(response.data);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -46,13 +38,11 @@ const Main = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem('jwt_token');
     setUser(null);
     navigate('/');
   };
 
-  console.log(data);
 
   return (
     <div className="min-h-screen bg-white">
@@ -70,7 +60,7 @@ const Main = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            {!data ? (
+            {data ? (
               <>
                 <Link to="/dashboard" className="px-4 py-2 text-gray-700 hover:text-purple-600 transition-colors cursor-pointer">
                   Dashboard

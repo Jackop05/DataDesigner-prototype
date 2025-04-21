@@ -59,7 +59,7 @@ const Project = () => {
     const fetchProject = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`http://localhost:4321/api/user/get-project-data/${projectId}`, {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user/get-project-data/${projectId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -161,7 +161,7 @@ const Project = () => {
         }))
       };
 
-      await axios.post(`http://localhost:4321/api/element/${projectId}/post-project-data`, apiData, {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/element/${projectId}/post-project-data`, apiData, {
         headers: {
           Authorization: `Bearer ${token}`
         }
