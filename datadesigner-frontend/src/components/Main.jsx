@@ -212,7 +212,7 @@ const Main = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {data.map((project) => (
+            {projects.map((project) => (
               <Link 
                 to={data.projects ? `/project/${project.id}` : "/register"} 
                 key={project.id} 
