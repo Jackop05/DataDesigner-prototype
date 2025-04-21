@@ -41,7 +41,7 @@ const Main = () => {
 
   const fetchProjects = async () => {
     try {
-      if (data? .projects != null) {
+      if (data?.projects != null) {
         console.log('data.projects', data.projects);
         const projectsData = await Promise.all(
           data.projects?.map(async (id) => {
