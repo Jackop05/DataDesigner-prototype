@@ -10,10 +10,10 @@ router.get('/get-user-data', async (req, res) => {
   try {
     const token = req.cookies.jwt_token;
     if (!token) {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: "No token found on the website"
-      })
+      });
     }
 
     if (!process.env.JWT_SECRET) {
@@ -22,20 +22,26 @@ router.get('/get-user-data', async (req, res) => {
 
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
     if (!decodedToken) {
-      res.status(403).json({
+      return res.status(403).json({
         success: false,
         message: "Token is not valid"
-      })
+      });
     }
 
     const userId = decodedToken.userId;
-    const user = await User.findById(userId) 
+
+    // ✅ Populate project data (id, projectName, createdAt)
+    const user = await User.findById(userId).populate({
+      path: 'projects',
+      select: '_id projectName createdAt'
+    });
+
     if (!user) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         message: "User not found"
-      })
-    }   
+      });
+    }
 
     const userData = {
       username: user.username,
@@ -57,6 +63,7 @@ router.get('/get-user-data', async (req, res) => {
     });
   }
 });
+
 
 router.post('/new-project', async (req, res) => {
   try {
@@ -104,7 +111,8 @@ router.post('/new-project', async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "New blank project created"
+      message: "New blank project created",
+      projectId: newProject._id
     });
 
   } catch (error) {

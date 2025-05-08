@@ -28,40 +28,13 @@ const Main = () => {
       });
       console.log("data: ", response.data);
       setData(response.data.data);
-      if (response.data.data?.projects) {
-        fetchProjects(response.data.data.projects);
-      } else {
-        setLoading(false);
-      }
+      setProjects(response.data.data.projects)
+      setLoading(false)
     } catch (error) {
       console.error('Error fetching user data:', error);
       setLoading(false);
     }
   };
-
-  // const fetchProjects = async () => {
-  //   try {
-  //     const projectsData = await Promise.all(
-  //       data.projects.map(async (id) => {
-  //         const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/user//get-project-data/${id}`, {
-  //           withCredentials: true,
-  //           headers: {
-  //             "Content-Type": "application/json",
-  //             // You might need to add this if you're dealing with CORS and credentials
-  //             "Access-Control-Allow-Credentials": "true"
-  //           }
-  //         });
-  //         return response.data.project;
-  //       })
-  //     );
-  //     setProjects(projectsData);
-  //     console.log(projectsData);
-  //   } catch (error) {
-  //     console.error('Error fetching projects:', error);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
   const scrollToSection = (ref) => {
     ref.current?.scrollIntoView({ behavior: "smooth" });
@@ -70,6 +43,7 @@ const Main = () => {
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
     setData(null);
+    setProjects(null);
     navigate('/');
   };
 
@@ -92,7 +66,6 @@ const Main = () => {
       if (response.data.success) {
         // Refresh the projects list
         fetchUserData();
-        // Optionally navigate to the new project
         navigate(`/project/${response.data.projectId}`);
       }
     } catch (error) {
@@ -208,10 +181,10 @@ const Main = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {data.map((project) => (
+            {projects?.map((project) => (
               <Link 
-                to={data ? `/project/${project.id}` : "/register"} 
-                key={project.id} 
+                to={data ? `/project/${project._id}` : "/register"} 
+                key={project._id} 
                 className="group rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow cursor-pointer"
               >
                 <div className={`h-48 ${project.color || 'bg-gray-100'} flex items-center justify-center`}>
@@ -222,15 +195,16 @@ const Main = () => {
                 <div className="p-6 bg-white">
                   <span className="text-sm text-purple-600 font-medium">{project.category || 'Database Project'}</span>
                   <h3 className="text-xl font-semibold mt-2 mb-1 group-hover:text-purple-600 transition-colors">
-                    {project.name}
+                    {project.projectName}
                   </h3>
-                  <p className="text-gray-600">{project.description}</p>
+                  <p className="text-gray-600">{project.description || 'No description provided.'}</p>
                   <button className="mt-4 text-purple-600 hover:text-purple-800 flex items-center transition-colors cursor-pointer">
                     {data ? "Open project" : "Sign up to create"} <BsArrowRight className="ml-2" />
                   </button>
                 </div>
               </Link>
             ))}
+
           </div>
         )}
       </section>
