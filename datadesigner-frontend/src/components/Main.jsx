@@ -91,9 +91,6 @@ const Main = () => {
           <div className="flex items-center space-x-4">
             {data ? (
               <>
-                <Link to="/dashboard" className="px-4 py-2 text-gray-700 hover:text-purple-600 transition-colors cursor-pointer">
-                  Dashboard
-                </Link>
                 <button 
                   onClick={handleLogout}
                   className="px-4 py-2 text-gray-700 hover:text-purple-600 transition-colors cursor-pointer"
@@ -126,12 +123,12 @@ const Main = () => {
               The modern platform for database design and collaboration with easy interface.
             </p>
             <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center">
-              <Link 
-                to={data ? "/project" : "/register"} 
+              <div 
+                onClick={() => scrollToSection(projectsRef)} 
                 className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center"
               >
                 {data ? "Go to Projects" : "Get started"} <BsArrowRight className="ml-2" />
-              </Link>
+              </div>
             </div>
           </div>
           <div className="md:w-1/2">
