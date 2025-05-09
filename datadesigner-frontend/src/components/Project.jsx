@@ -505,6 +505,13 @@ const Project = () => {
     <div className="relative w-full h-[90vh] bg-gray-50 overflow-hidden flex flex-row justify-center">
       {/* Toolbar */}
       <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-md p-2 flex flex-col space-y-2">
+      <Link 
+          to="/"
+          className="p-2 rounded-md hover:bg-gray-100 text-red-500"
+          title="Delete selected table"
+        >
+          <FiHome />
+        </Link>
         <button
           onClick={addTable}
           className="p-2 rounded-md hover:bg-gray-100 bg-blue-100 text-blue-800"
