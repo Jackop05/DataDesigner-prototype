@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiTable, FiColumns, FiPlus, FiMinus, FiTrash2, FiX, FiHome } from 'react-icons/fi';
+import { FiTable, FiPlus, FiMinus, FiTrash2, FiX, FiHome } from 'react-icons/fi';
 import axios from 'axios';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 
 const Project = () => {
   const { projectId } = useParams();
