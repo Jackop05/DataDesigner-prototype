@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiTable, FiColumns, FiPlus, FiMinus, FiTrash2, FiX } from 'react-icons/fi';
+import { FiTable, FiColumns, FiPlus, FiMinus, FiTrash2, FiX, FiHome } from 'react-icons/fi';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -505,13 +505,6 @@ const Project = () => {
     <div className="relative w-full h-[90vh] bg-gray-50 overflow-hidden flex flex-row justify-center">
       {/* Toolbar */}
       <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-md p-2 flex flex-col space-y-2">
-        <button
-          onClick={() => navigate('/')}
-          className="p-2 rounded-md hover:bg-gray-100 text-gray-700"
-          title="Go back home"
-        >
-          <FiHome />
-        </button>
         <button
           onClick={addTable}
           className="p-2 rounded-md hover:bg-gray-100 bg-blue-100 text-blue-800"
