@@ -508,7 +508,7 @@ const Project = () => {
       <Link 
           to="/"
           className="p-2 rounded-md hover:bg-gray-100 text-red-500"
-          title="Delete selected table"
+          title="Link to home page"
         >
           <FiHome />
         </Link>
