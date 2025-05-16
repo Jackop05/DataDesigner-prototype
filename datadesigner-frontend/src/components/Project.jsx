@@ -16,7 +16,7 @@ const Project = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStart, setConnectionStart] = useState(null);
   const [zoom, setZoom] = useState(100);
-  const [gridSize, setGridSize] = useState(20);
+  const [gridSize] = useState(20); // Fixed grid size
   const [editingFields, setEditingFields] = useState({});
   const [newFieldNames, setNewFieldNames] = useState({});
   const [newFieldTypes, setNewFieldTypes] = useState({});
@@ -24,6 +24,7 @@ const Project = () => {
   const [boardPosition, setBoardPosition] = useState({ x: 0, y: 0 });
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isDraggingBoard, setIsDraggingBoard] = useState(false);
+  const [touchStartPos, setTouchStartPos] = useState(null);
 
   // Element and field configuration
   const elementTypes = [
@@ -290,19 +291,24 @@ const Project = () => {
 
   // Handle table movement
   const handleElementMove = (id, e) => {
-    if (e.buttons !== 1) return;
+    if (e.buttons !== 1 && !e.touches) return;
     
     const element = elements.find(el => el.id === id);
     if (!element) return;
     
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const startX = e.clientX || e.touches[0].clientX;
+    const startY = e.clientY || e.touches[0].clientY;
     const startPosX = element.x;
     const startPosY = element.y;
     
     const moveHandler = (moveEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
+      const currentY = moveEvent.clientY || (moveEvent.touches && moveEvent.touches[0].clientY);
+      
+      if (currentX === undefined || currentY === undefined) return;
+      
+      const dx = currentX - startX;
+      const dy = currentY - startY;
       
       const newX = Math.round((startPosX + dx) / gridSize) * gridSize;
       const newY = Math.round((startPosY + dy) / gridSize) * gridSize;
@@ -314,11 +320,15 @@ const Project = () => {
     
     const upHandler = () => {
       document.removeEventListener('mousemove', moveHandler);
+      document.removeEventListener('touchmove', moveHandler);
       document.removeEventListener('mouseup', upHandler);
+      document.removeEventListener('touchend', upHandler);
     };
     
     document.addEventListener('mousemove', moveHandler);
+    document.addEventListener('touchmove', moveHandler, { passive: false });
     document.addEventListener('mouseup', upHandler);
+    document.addEventListener('touchend', upHandler);
   };
 
   // Connection management
@@ -380,16 +390,21 @@ const Project = () => {
 
   // Handle board movement
   const handleBoardMove = (e) => {
-    if (e.buttons !== 2 && !isDraggingBoard) return;
+    if ((e.buttons !== 2 && !isDraggingBoard) || (e.touches && e.touches.length !== 1)) return;
     
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const startX = e.clientX || e.touches[0].clientX;
+    const startY = e.clientY || e.touches[0].clientY;
     const startPosX = boardPosition.x;
     const startPosY = boardPosition.y;
     
     const moveHandler = (moveEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
+      const currentY = moveEvent.clientY || (moveEvent.touches && moveEvent.touches[0].clientY);
+      
+      if (currentX === undefined || currentY === undefined) return;
+      
+      const dx = currentX - startX;
+      const dy = currentY - startY;
       
       setBoardPosition({
         x: startPosX + dx,
@@ -399,45 +414,54 @@ const Project = () => {
     
     const upHandler = () => {
       document.removeEventListener('mousemove', moveHandler);
+      document.removeEventListener('touchmove', moveHandler);
       document.removeEventListener('mouseup', upHandler);
+      document.removeEventListener('touchend', upHandler);
       setIsDraggingBoard(false);
     };
     
     setIsDraggingBoard(true);
     document.addEventListener('mousemove', moveHandler);
+    document.addEventListener('touchmove', moveHandler, { passive: false });
     document.addEventListener('mouseup', upHandler);
+    document.addEventListener('touchend', upHandler);
   };
 
   // Touch handlers for mobile
   const handleTouchStart = (e) => {
     if (e.touches.length === 1) {
-      setIsDraggingBoard(true);
-      const touch = e.touches[0];
-      const startX = touch.clientX;
-      const startY = touch.clientY;
-      const startPosX = boardPosition.x;
-      const startPosY = boardPosition.y;
-      
-      const moveHandler = (moveEvent) => {
-        const touch = moveEvent.touches[0];
-        const dx = touch.clientX - startX;
-        const dy = touch.clientY - startY;
-        
-        setBoardPosition({
-          x: startPosX + dx,
-          y: startPosY + dy
-        });
-      };
-      
-      const endHandler = () => {
-        document.removeEventListener('touchmove', moveHandler);
-        document.removeEventListener('touchend', endHandler);
-        setIsDraggingBoard(false);
-      };
-      
-      document.addEventListener('touchmove', moveHandler);
-      document.addEventListener('touchend', endHandler);
+      setTouchStartPos({
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY
+      });
     }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!touchStartPos) return;
+    
+    const touch = e.changedTouches[0];
+    const endX = touch.clientX;
+    const endY = touch.clientY;
+    
+    // Check if it was a tap (not a drag)
+    const distance = Math.sqrt(
+      Math.pow(endX - touchStartPos.x, 2) + 
+      Math.pow(endY - touchStartPos.y, 2)
+    );
+    
+    if (distance < 5) {
+      // It's a tap, handle selection
+      const element = document.elementFromPoint(endX, endY)?.closest('.draggable-element');
+      if (element) {
+        const elementId = element.getAttribute('data-id');
+        setSelectedElement(elementId);
+      } else {
+        setSelectedElement(null);
+      }
+    }
+    
+    setTouchStartPos(null);
   };
 
   // Render the grid dots
@@ -695,6 +719,7 @@ const Project = () => {
         className={`absolute inset-0 ${isDraggingBoard ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handleBoardMove}
         onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         style={{
           transform: `scale(${zoom / 100})`,
           transformOrigin: 'center center',
@@ -730,29 +755,31 @@ const Project = () => {
           return (
             <div
               key={element.id}
-              className={`absolute rounded-lg border-2 shadow-md ${elementType.color} ${
+              data-id={element.id}
+              className={`draggable-element absolute rounded-lg border-2 shadow-md ${elementType.color} ${
                 selectedElement === element.id ? 'border-purple-500' : 'border-gray-300'
               }`}
               style={{
                 left: `${element.x}px`,
                 top: `${element.y}px`,
                 width: `${element.width}px`,
-                minHeight: '120px'
+                minHeight: '120px',
+                touchAction: 'none' // Prevent browser touch behaviors
               }}
-              onClick={() => setSelectedElement(element.id)}
+              onClick={(e) => {
+                if (!isMobile()) {
+                  setSelectedElement(element.id);
+                }
+              }}
               onMouseDown={(e) => handleElementMove(element.id, e)}
               onTouchStart={(e) => {
-                if (e.touches.length === 1) {
-                  const touch = e.touches[0];
-                  const fakeMouseEvent = {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                    buttons: 1,
-                    preventDefault: () => {},
-                    stopPropagation: () => {}
-                  };
-                  handleElementMove(element.id, fakeMouseEvent);
-                }
+                e.stopPropagation();
+                const fakeMouseEvent = {
+                  touches: e.touches,
+                  preventDefault: () => e.preventDefault(),
+                  stopPropagation: () => e.stopPropagation()
+                };
+                handleElementMove(element.id, fakeMouseEvent);
               }}
             >
               {/* Element header */}
@@ -779,6 +806,16 @@ const Project = () => {
                     key={field.id} 
                     className="flex items-center py-1 px-2 text-xs md:text-sm hover:bg-white hover:bg-opacity-30 rounded group"
                     onMouseDown={(e) => {
+                      if (isConnecting) {
+                        e.stopPropagation();
+                        if (connectionStart) {
+                          completeConnection(element.id, field.id);
+                        } else {
+                          startConnection(element.id, field.id);
+                        }
+                      }
+                    }}
+                    onTouchStart={(e) => {
                       if (isConnecting) {
                         e.stopPropagation();
                         if (connectionStart) {
@@ -890,6 +927,14 @@ const Project = () => {
                       startConnection(element.id);
                     }
                   }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    if (isConnecting && connectionStart) {
+                      completeConnection(element.id);
+                    } else {
+                      startConnection(element.id);
+                    }
+                  }}
                   className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center ${
                     isConnecting ? 'bg-purple-500 text-white' : 'bg-gray-200 hover:bg-gray-300'
                   }`}
@@ -910,7 +955,7 @@ const Project = () => {
           {saving && <span className="ml-2 md:ml-4 text-blue-600">Saving...</span>}
         </div>
         <div>
-          Grid: {gridSize}px | Zoom: {zoom}%
+          Zoom: {zoom}%
         </div>
       </div>
     </div>
