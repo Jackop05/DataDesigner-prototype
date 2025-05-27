@@ -390,27 +390,28 @@ const Project = () => {
 
   // Handle board movement
   const handleBoardMove = (e) => {
-    if ((e.buttons !== 2 && !isDraggingBoard) || (e.touches && e.touches.length !== 1)) return;
+  if ((e.buttons !== 2 && !isDraggingBoard) || (e.touches && e.touches.length !== 1)) return;
+  
+  const startX = e.clientX || e.touches[0].clientX;
+  const startY = e.clientY || e.touches[0].clientY;
+  const startPosX = boardPosition.x;
+  const startPosY = boardPosition.y;
+  
+  const moveHandler = (moveEvent) => {
+    const currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
+    const currentY = moveEvent.clientY || (moveEvent.touches && moveEvent.touches[0].clientY);
     
-    const startX = e.clientX || e.touches[0].clientX;
-    const startY = e.clientY || e.touches[0].clientY;
-    const startPosX = boardPosition.x;
-    const startPosY = boardPosition.y;
+    if (currentX === undefined || currentY === undefined) return;
     
-    const moveHandler = (moveEvent) => {
-      const currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
-      const currentY = moveEvent.clientY || (moveEvent.touches && moveEvent.touches[0].clientY);
-      
-      if (currentX === undefined || currentY === undefined) return;
-      
-      const dx = currentX - startX;
-      const dy = currentY - startY;
-      
-      setBoardPosition({
-        x: startPosX + dx,
-        y: startPosY + dy
-      });
-    };
+    const dx = (currentX - startX) * (100 / zoom);
+    const dy = (currentY - startY) * (100 / zoom);
+    
+    setBoardPosition({
+      x: startPosX + dx,
+      y: startPosY + dy
+    });
+  };
+  
     
     const upHandler = () => {
       document.removeEventListener('mousemove', moveHandler);
@@ -466,22 +467,32 @@ const Project = () => {
 
   // Render the grid dots
   const renderGrid = () => {
-    const cols = Math.ceil(window.innerWidth / gridSize) + 10;
-    const rows = Math.ceil(window.innerHeight / gridSize) + 10;
-    
-    return Array.from({ length: rows }).map((_, row) => (
-      Array.from({ length: cols }).map((_, col) => (
-        <div 
-          key={`dot-${row}-${col}`}
-          className="absolute w-1 h-1 rounded-full bg-gray-300"
-          style={{
-            left: col * gridSize - boardPosition.x,
-            top: row * gridSize - boardPosition.y
-          }}
-        />
-      ))
-    ));
-  };
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  
+  // Adjust grid size based on zoom level
+  const scaledGridSize = gridSize * (100 / zoom);
+  
+  // Calculate visible grid area based on board position and zoom
+  const startX = Math.floor(-boardPosition.x / scaledGridSize) * scaledGridSize;
+  const startY = Math.floor(-boardPosition.y / scaledGridSize) * scaledGridSize;
+  
+  const cols = Math.ceil(viewportWidth / scaledGridSize) + 2;
+  const rows = Math.ceil(viewportHeight / scaledGridSize) + 2;
+  
+  return Array.from({ length: rows }).map((_, row) => (
+    Array.from({ length: cols }).map((_, col) => (
+      <div 
+        key={`dot-${row}-${col}`}
+        className="absolute w-1 h-1 rounded-full bg-gray-300"
+        style={{
+          left: startX + col * scaledGridSize,
+          top: startY + row * scaledGridSize
+        }}
+      />
+    ))
+  ));
+};
 
   // Calculate connection path points
   const calculateConnectionPath = (fromEl, toEl, fromFieldId = null, toFieldId = null) => {
@@ -722,7 +733,11 @@ const Project = () => {
         onTouchEnd={handleTouchEnd}
         style={{
           transform: `scale(${zoom / 100})`,
-          transformOrigin: 'center center',
+          transformOrigin: '0 0',
+          left: `${boardPosition.x}px`,
+          top: `${boardPosition.y}px`,
+          width: '100%',
+          height: '100%'
         }}
       >
         {/* Grid dots */}
@@ -760,11 +775,11 @@ const Project = () => {
                 selectedElement === element.id ? 'border-purple-500' : 'border-gray-300'
               }`}
               style={{
-                left: `${element.x}px`,
-                top: `${element.y}px`,
-                width: `${element.width}px`,
-                minHeight: '120px',
-                touchAction: 'none' // Prevent browser touch behaviors
+                left: `${element.x * (zoom / 100)}px`,
+                top: `${element.y * (zoom / 100)}px`,
+                width: `${element.width * (zoom / 100)}px`,
+                minHeight: `${120 * (zoom / 100)}px`,
+                touchAction: 'none'
               }}
               onClick={(e) => {
                 if (!isMobile()) {
