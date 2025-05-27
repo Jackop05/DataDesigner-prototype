@@ -403,8 +403,8 @@ const Project = () => {
     
     if (currentX === undefined || currentY === undefined) return;
     
-    const dx = (currentX - startX) * (100 / zoom);
-    const dy = (currentY - startY) * (100 / zoom);
+    const dx = currentX - startX;
+    const dy = currentY - startY;
     
     setBoardPosition({
       x: startPosX + dx,
@@ -467,18 +467,15 @@ const Project = () => {
 
   // Render the grid dots
   const renderGrid = () => {
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth * (100 / zoom);
+  const viewportHeight = window.innerHeight * (100 / zoom);
   
-  // Adjust grid size based on zoom level
-  const scaledGridSize = gridSize * (100 / zoom);
+  // Calculate visible grid area
+  const startX = Math.floor(-boardPosition.x / gridSize) * gridSize;
+  const startY = Math.floor(-boardPosition.y / gridSize) * gridSize;
   
-  // Calculate visible grid area based on board position and zoom
-  const startX = Math.floor(-boardPosition.x / scaledGridSize) * scaledGridSize;
-  const startY = Math.floor(-boardPosition.y / scaledGridSize) * scaledGridSize;
-  
-  const cols = Math.ceil(viewportWidth / scaledGridSize) + 2;
-  const rows = Math.ceil(viewportHeight / scaledGridSize) + 2;
+  const cols = Math.ceil(viewportWidth / gridSize) + 2;
+  const rows = Math.ceil(viewportHeight / gridSize) + 2;
   
   return Array.from({ length: rows }).map((_, row) => (
     Array.from({ length: cols }).map((_, col) => (
@@ -486,13 +483,12 @@ const Project = () => {
         key={`dot-${row}-${col}`}
         className="absolute w-1 h-1 rounded-full bg-gray-300"
         style={{
-          left: startX + col * scaledGridSize,
-          top: startY + row * scaledGridSize
+          left: startX + col * gridSize,
+          top: startY + row * gridSize,
         }}
       />
-    ))
-  ));
-};
+    ))));
+  };
 
   // Calculate connection path points
   const calculateConnectionPath = (fromEl, toEl, fromFieldId = null, toFieldId = null) => {
@@ -732,10 +728,8 @@ const Project = () => {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{
-          transform: `scale(${zoom / 100})`,
+          transform: `scale(${zoom / 100}) translate(${boardPosition.x}px, ${boardPosition.y}px)`,
           transformOrigin: '0 0',
-          left: `${boardPosition.x}px`,
-          top: `${boardPosition.y}px`,
           width: '100%',
           height: '100%'
         }}
@@ -774,11 +768,12 @@ const Project = () => {
               className={`draggable-element absolute rounded-lg border-2 shadow-md ${elementType.color} ${
                 selectedElement === element.id ? 'border-purple-500' : 'border-gray-300'
               }`}
+              // In your element rendering code, update the style to:
               style={{
-                left: `${element.x * (zoom / 100)}px`,
-                top: `${element.y * (zoom / 100)}px`,
-                width: `${element.width * (zoom / 100)}px`,
-                minHeight: `${120 * (zoom / 100)}px`,
+                left: `${element.x}px`,
+                top: `${element.y}px`,
+                width: `${element.width}px`,
+                minHeight: '120px', // Keep original size
                 touchAction: 'none'
               }}
               onClick={(e) => {
