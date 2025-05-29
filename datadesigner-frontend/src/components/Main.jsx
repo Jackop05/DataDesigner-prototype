@@ -159,10 +159,10 @@ const Main = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 sm:mb-12">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
-              {data ? "Your Projects" : "Example Projects"}
+              Your Projects
             </h2>
             <p className="text-sm sm:text-base text-gray-600">
-              {data ? "Explore your database designs" : "See what you can create"}
+              {data ? "Explore your database designs" : "Create your first project now"}
             </p>
           </div>
         </div>

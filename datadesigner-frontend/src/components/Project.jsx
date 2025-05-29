@@ -595,6 +595,7 @@ const Project = () => {
       <div className={`hidden md:flex absolute top-4 left-4 z-10 bg-white rounded-lg shadow-md p-2 flex-col space-y-2`}>
         <Link 
           to="/"
+          onClick={saveProject}
           className="p-2 rounded-md hover:bg-gray-100 text-red-500"
           title="Link to home page"
         >
