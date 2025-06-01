@@ -18,7 +18,6 @@ const Project = () => {
   const [zoom, setZoom] = useState(100);
   const [gridSize] = useState(20); // Fixed grid size
   const [editingFields, setEditingFields] = useState({});
-  const [editingTableNames, setEditingTableNames] = useState({});
   const [newFieldNames, setNewFieldNames] = useState({});
   const [newFieldTypes, setNewFieldTypes] = useState({});
   const boardRef = useRef(null);
@@ -79,16 +78,13 @@ const Project = () => {
         setConnections(transformedData.connections);
         
         const initialFieldStates = {};
-        const initialTableNameStates = {};
         transformedData.elements.forEach(el => {
           initialFieldStates[el.id] = {};
-          initialTableNameStates[el.id] = false;
           el.fields?.forEach(field => {
             initialFieldStates[el.id][field.id] = false;
           });
         });
         setEditingFields(initialFieldStates);
-        setEditingTableNames(initialTableNameStates);
       } catch (error) {
         console.error("Error loading project:", error);
       } finally {
@@ -115,13 +111,10 @@ const Project = () => {
 
   // Calculate required width based on content
   const calculateRequiredWidth = (fields) => {
-    const minWidth = 200; // Minimum width for tables
-    if (!fields || fields.length === 0) return minWidth;
-    
-    // Calculate width based on the longest field name and type
-    const longestName = Math.max(...fields.map(f => f.name.length * 8));
-    const longestType = Math.max(...fields.map(f => f.type.length * 8));
-    return Math.max(minWidth, longestName + longestType + 80); // Add padding
+    const minWidth = isMobile() ? 150 : 200;
+    const fieldNameWidths = fields.map(f => f.name.length * (isMobile() ? 6 : 8));
+    const fieldTypeWidths = fields.map(f => f.type.length * (isMobile() ? 6 : 8));
+    return Math.max(minWidth, Math.max(...fieldNameWidths) + Math.max(...fieldTypeWidths) + (isMobile() ? 60 : 100));
   };
 
   // Add new table to the board
@@ -148,10 +141,6 @@ const Project = () => {
     setEditingFields({
       ...editingFields,
       [newElement.id]: {}
-    });
-    setEditingTableNames({
-      ...editingTableNames,
-      [newElement.id]: false
     });
     setShowMobileMenu(false);
   };
@@ -212,10 +201,6 @@ const Project = () => {
     setElements(elements.map(el => 
       el.id === id ? { ...el, name: newName } : el
     ));
-    setEditingTableNames({
-      ...editingTableNames,
-      [id]: false
-    });
   };
 
   // Add new field to table
@@ -304,14 +289,6 @@ const Project = () => {
     });
   };
 
-  // Toggle table name editing mode
-  const toggleTableNameEditing = (elementId) => {
-    setEditingTableNames({
-      ...editingTableNames,
-      [elementId]: !editingTableNames[elementId]
-    });
-  };
-
   // Handle table movement
   const handleElementMove = (id, e) => {
     if (e.buttons !== 1 && !e.touches) return;
@@ -371,22 +348,19 @@ const Project = () => {
           ? elements.find(el => el.id === elementId)?.fields?.find(f => f.id === fieldId)
           : null;
 
-        // Only allow connections between fields (not tables directly)
-        if (connectionStart.fieldId && fieldId) {
-          setConnections([
-            ...connections,
-            {
-              id: `conn-${Date.now()}`,
-              from: connectionStart.elementId,
-              to: elementId,
-              fromField: connectionStart.fieldId,
-              toField: fieldId,
-              type: 'one-to-many',
-              fromFieldName: fromField?.name,
-              toFieldName: toField?.name
-            }
-          ]);
-        }
+        setConnections([
+          ...connections,
+          {
+            id: `conn-${Date.now()}`,
+            from: connectionStart.elementId,
+            to: elementId,
+            fromField: connectionStart.fieldId,
+            toField: fieldId,
+            type: 'one-to-many',
+            fromFieldName: fromField?.name,
+            toFieldName: toField?.name
+          }
+        ]);
       }
     }
     setIsConnecting(false);
@@ -416,27 +390,28 @@ const Project = () => {
 
   // Handle board movement
   const handleBoardMove = (e) => {
-    if ((e.buttons !== 2 && !isDraggingBoard) || (e.touches && e.touches.length !== 1)) return;
+  if ((e.buttons !== 2 && !isDraggingBoard) || (e.touches && e.touches.length !== 1)) return;
+  
+  const startX = e.clientX || e.touches[0].clientX;
+  const startY = e.clientY || e.touches[0].clientY;
+  const startPosX = boardPosition.x;
+  const startPosY = boardPosition.y;
+  
+  const moveHandler = (moveEvent) => {
+    const currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
+    const currentY = moveEvent.clientY || (moveEvent.touches && moveEvent.touches[0].clientY);
     
-    const startX = e.clientX || e.touches[0].clientX;
-    const startY = e.clientY || e.touches[0].clientY;
-    const startPosX = boardPosition.x;
-    const startPosY = boardPosition.y;
+    if (currentX === undefined || currentY === undefined) return;
     
-    const moveHandler = (moveEvent) => {
-      const currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
-      const currentY = moveEvent.clientY || (moveEvent.touches && moveEvent.touches[0].clientY);
-      
-      if (currentX === undefined || currentY === undefined) return;
-      
-      const dx = currentX - startX;
-      const dy = currentY - startY;
-      
-      setBoardPosition({
-        x: startPosX + dx,
-        y: startPosY + dy
-      });
-    };
+    const dx = currentX - startX;
+    const dy = currentY - startY;
+    
+    setBoardPosition({
+      x: startPosX + dx,
+      y: startPosY + dy
+    });
+  };
+  
     
     const upHandler = () => {
       document.removeEventListener('mousemove', moveHandler);
@@ -492,27 +467,27 @@ const Project = () => {
 
   // Render the grid dots
   const renderGrid = () => {
-    const viewportWidth = window.innerWidth * (100 / zoom);
-    const viewportHeight = window.innerHeight * (100 / zoom);
-    
-    // Calculate visible grid area
-    const startX = Math.floor(-boardPosition.x / gridSize) * gridSize;
-    const startY = Math.floor(-boardPosition.y / gridSize) * gridSize;
-    
-    const cols = Math.ceil(viewportWidth / gridSize) + 2;
-    const rows = Math.ceil(viewportHeight / gridSize) + 2;
-    
-    return Array.from({ length: rows }).map((_, row) => (
-      Array.from({ length: cols }).map((_, col) => (
-        <div 
-          key={`dot-${row}-${col}`}
-          className="absolute w-1 h-1 rounded-full bg-gray-300"
-          style={{
-            left: startX + col * gridSize,
-            top: startY + row * gridSize,
-          }}
-        />
-      ))));
+  const viewportWidth = window.innerWidth * (100 / zoom);
+  const viewportHeight = window.innerHeight * (100 / zoom);
+  
+  // Calculate visible grid area
+  const startX = Math.floor(-boardPosition.x / gridSize) * gridSize;
+  const startY = Math.floor(-boardPosition.y / gridSize) * gridSize;
+  
+  const cols = Math.ceil(viewportWidth / gridSize) + 2;
+  const rows = Math.ceil(viewportHeight / gridSize) + 2;
+  
+  return Array.from({ length: rows }).map((_, row) => (
+    Array.from({ length: cols }).map((_, col) => (
+      <div 
+        key={`dot-${row}-${col}`}
+        className="absolute w-1 h-1 rounded-full bg-gray-300"
+        style={{
+          left: startX + col * gridSize,
+          top: startY + row * gridSize,
+        }}
+      />
+    ))));
   };
 
   // Calculate connection path points
@@ -529,8 +504,12 @@ const Project = () => {
       return { fromX, fromY, toX, toY };
     }
     
-    // If trying to connect tables directly (without fields), don't draw the connection
-    return null;
+    const fromX = fromEl.x + fromEl.width;
+    const fromY = fromEl.y + fromEl.height / 2;
+    const toX = toEl.x;
+    const toY = toEl.y + toEl.height / 2;
+    
+    return { fromX, fromY, toX, toY };
   };
 
   // Render connections between tables
@@ -541,17 +520,15 @@ const Project = () => {
       
       if (!fromEl || !toEl) return null;
       
-      const pathPoints = calculateConnectionPath(fromEl, toEl, conn.fromField, conn.toField);
-      if (!pathPoints) return null;
-      
-      const { fromX, fromY, toX, toY } = pathPoints;
+      const { fromX, fromY, toX, toY } = calculateConnectionPath(
+        fromEl, 
+        toEl, 
+        conn.fromField, 
+        conn.toField
+      );
       
       const controlX1 = fromX + Math.max(50, (toX - fromX) / 2);
       const controlX2 = toX - Math.max(50, (toX - fromX) / 2);
-      
-      // Calculate midpoint for the relationship type selector
-      const midX = (fromX + toX) / 2;
-      const midY = (fromY + toY) / 2;
       
       return (
         <svg 
@@ -567,8 +544,8 @@ const Project = () => {
           />
           
           <foreignObject 
-            x={midX - 50} 
-            y={midY - 15} 
+            x={(fromX + toX) / 2 - 50} 
+            y={(fromY + toY) / 2 - 15} 
             width="100" 
             height="30"
             className="pointer-events-auto"
@@ -792,12 +769,12 @@ const Project = () => {
               className={`draggable-element absolute rounded-lg border-2 shadow-md ${elementType.color} ${
                 selectedElement === element.id ? 'border-purple-500' : 'border-gray-300'
               }`}
+              // In your element rendering code, update the style to:
               style={{
                 left: `${element.x}px`,
                 top: `${element.y}px`,
                 width: `${element.width}px`,
-                minHeight: '120px',
-                minWidth: '200px',
+                minHeight: '120px', // Keep original size
                 touchAction: 'none'
               }}
               onClick={(e) => {
@@ -819,28 +796,22 @@ const Project = () => {
               {/* Element header */}
               <div className={`flex items-center p-2 border-b ${elementType.textColor} font-medium`}>
                 {elementType.icon}
-                {editingTableNames[element.id] ? (
-                  <input
-                    type="text"
-                    value={element.name}
-                    onChange={(e) => updateElementName(element.id, e.target.value)}
-                    onBlur={() => toggleTableNameEditing(element.id)}
-                    onKeyPress={(e) => e.key === 'Enter' && toggleTableNameEditing(element.id)}
-                    className="ml-2 bg-transparent border-b border-gray-400 focus:outline-none flex-1"
-                    autoFocus
-                  />
-                ) : (
-                  <span 
-                    className="ml-2 cursor-text flex-1 truncate"
-                    onDoubleClick={() => toggleTableNameEditing(element.id)}
-                  >
-                    {element.name}
-                  </span>
-                )}
+                <span 
+                  className="ml-2 cursor-text truncate"
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    const newName = prompt('Enter new table name:', element.name);
+                    if (newName !== null) {
+                      updateElementName(element.id, newName || element.name);
+                    }
+                  }}
+                >
+                  {element.name}
+                </span>
               </div>
 
               {/* Table fields */}
-              <div className="p-1 overflow-hidden">
+              <div className="p-1">
                 {element.fields?.map((field) => (
                   <div 
                     key={field.id} 
@@ -880,18 +851,18 @@ const Project = () => {
                         <select
                           value={field.type}
                           onChange={(e) => updateField(element.id, field.id, { type: e.target.value })}
-                          className="ml-2 bg-transparent border-b border-gray-400 focus:outline-none text-xs md:text-sm"
+                          className="ml-1 md:ml-2 bg-transparent border-b border-gray-400 focus:outline-none text-xs md:text-sm"
                         >
                           {fieldTypes.map(type => (
                             <option key={type} value={type}>{type}</option>
                           ))}
                         </select>
                         <button 
-                          className="ml-2 p-1 text-red-500"
+                          className="ml-1 md:ml-2 p-1 text-red-500"
                           onClick={() => deleteField(element.id, field.id)}
                           title="Delete field"
                         >
-                          <FiTrash2 size={12} />
+                          <FiTrash2 size={isMobile() ? 10 : 12} />
                         </button>
                       </div>
                     ) : (
@@ -905,63 +876,53 @@ const Project = () => {
                         >
                           {field.name}
                         </span>
-                        <span 
-                          className="text-gray-500 text-xs truncate ml-2 w-20 text-right"
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            toggleFieldEditing(element.id, field.id);
-                          }}
-                        >
-                          {field.type}
-                        </span>
+                        <span className="text-gray-500 text-xs truncate ml-1">{field.type}</span>
                         <button 
-                          className="ml-2 p-1 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-500"
+                          className="ml-1 md:ml-2 p-1 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-500"
                           onClick={(e) => { 
                             e.stopPropagation(); 
                             deleteField(element.id, field.id);
                           }}
                           title="Delete field"
                         >
-                          <FiX size={12} />
+                          <FiX size={isMobile() ? 10 : 12} />
                         </button>
                       </>
                     )}
                   </div>
                 ))}
                 
-                {/* Add new field - inside the table */}
-                <div className="mt-1 flex items-center justify-between p-2 bg-blue-50 rounded">
-                  <div className="flex items-center flex-1">
-                    <input
-                      type="text"
-                      value={newFieldNames[element.id] || ''}
-                      onChange={(e) => setNewFieldNames({
-                        ...newFieldNames,
-                        [element.id]: e.target.value
-                      })}
-                      placeholder="Field name"
-                      className="text-xs border-b border-gray-400 focus:outline-none bg-transparent flex-1 mr-2"
-                      onKeyPress={(e) => e.key === 'Enter' && addField(element.id)}
-                    />
-                    <select
-                      value={newFieldTypes[element.id] || 'text'}
-                      onChange={(e) => setNewFieldTypes({
-                        ...newFieldTypes,
-                        [element.id]: e.target.value
-                      })}
-                      className="text-xs border-b border-gray-400 focus:outline-none bg-transparent"
-                    >
-                      {fieldTypes.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Add new field */}
+                <div className="mt-1 md:mt-2 flex items-center">
+                  <input
+                    type="text"
+                    value={newFieldNames[element.id] || ''}
+                    onChange={(e) => setNewFieldNames({
+                      ...newFieldNames,
+                      [element.id]: e.target.value
+                    })}
+                    placeholder="Field name"
+                    className="flex-1 text-xs md:text-sm ml-1 md:ml-2 border-b border-gray-400 focus:outline-none bg-transparent max-w-[100px] md:max-w-[150px]"
+                    onKeyPress={(e) => e.key === 'Enter' && addField(element.id)}
+                  />
+                  <select
+                    value={newFieldTypes[element.id] || 'text'}
+                    onChange={(e) => setNewFieldTypes({
+                      ...newFieldTypes,
+                      [element.id]: e.target.value
+                    })}
+                    className="ml-1 md:ml-2 text-xs md:text-sm border-b border-gray-400 focus:outline-none bg-transparent"
+                  >
+                    {fieldTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
                   <button 
-                    className="ml-2 p-1 text-green-600"
+                    className="ml-1 md:ml-2 p-1 text-green-600"
                     onClick={() => addField(element.id)}
                     title="Add field"
                   >
-                    <FiPlus size={14} />
+                    <FiPlus size={isMobile() ? 12 : 14} />
                   </button>
                 </div>
               </div>
@@ -990,7 +951,7 @@ const Project = () => {
                   }`}
                   title={isConnecting ? 'Complete connection' : 'Start new connection'}
                 >
-                  <FiPlus size={12} />
+                  <FiPlus size={isMobile() ? 12 : 14} />
                 </button>
               </div>
             </div>
@@ -1011,5 +972,5 @@ const Project = () => {
     </div>
   );
 };
-
+ 
 export default Project;
