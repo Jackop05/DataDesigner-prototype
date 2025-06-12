@@ -38,12 +38,28 @@ const Main = () => {
     ref.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('jwt_token');
-    setData(null);
-    setProjects(null);
-    navigate('/');
-  };
+  const handleLogout = async () => {
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/auth/logout`,
+        {},
+        {
+          withCredentials: true,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      localStorage.removeItem('jwt_token');
+      setData(null);
+      setProjects(null);
+      navigate('/');
+    }
+};
+
 
   const handleNewProject = async () => {
     try {
